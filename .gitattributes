@@ -1,0 +1,4 @@
+lib/**/*.wasm.js -diff -text
+lib/**/*.wasm -diff -text
+lib/**/*.gz -diff -text
+lib/**/*.mjs -diff linguist-vendored

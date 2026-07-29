@@ -80,10 +80,11 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .tab{padding:6px 14px;border:0.5px solid var(--border);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);cursor:pointer;background:var(--surface);color:var(--ink-dim);transition:background .15s,color .15s,border-color .15s}
 .tab:hover{color:var(--ink)}
 .tab.active{background:var(--primary-bg-subdued-hover);color:var(--primary-deep);border-color:var(--primary-deep)}
-.canvas-wrap{position:relative;overflow:hidden;border-radius:var(--radius-lg);border:0.5px solid var(--border);box-shadow:var(--elevation-1);background:var(--viewer-bg);cursor:grab;height:420px;display:flex;align-items:center;justify-content:center}
+.canvas-wrap{position:relative;overflow:hidden;border-radius:var(--radius-lg);border:0.5px solid var(--border);box-shadow:var(--elevation-1);background:var(--viewer-bg);cursor:grab;height:420px;display:grid;place-items:center}
 .canvas-wrap.dragging{cursor:grabbing}
 canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
-#mainCanvas{max-width:none;max-height:none}
+#mainCanvas,#regionsCanvas{grid-area:1/1;max-width:none;max-height:none}
+#regionsCanvas{pointer-events:none}
 .zoom-box{position:fixed;z-index:999;pointer-events:none;border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface);padding:var(--space-2);box-shadow:var(--elevation-2);display:none}
 .zoom-box canvas{display:block;border-radius:var(--radius-xs)}
 .zoom-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);padding:4px 4px 0;line-height:1.6}
@@ -123,6 +124,39 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .rm-circle{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border:1.5px solid var(--marker);border-radius:50%}
 .hover-marker .rm-line{background:#fff}
 .hover-marker .rm-circle{border-color:#fff}
+
+/* ---- capa de entrada PDF/.ai/.svg: selector de PPP/página ---- */
+.pdf-controls{display:none;flex-wrap:wrap;gap:var(--space-2) var(--space-3);align-items:center;margin-top:var(--space-2);font-size:var(--caption-size);color:var(--ink-dim)}
+.pdf-controls label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.pdf-controls select{border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-ui);font-size:12px;color:var(--ink);background:var(--surface)}
+.text-indicator{font-size:var(--caption-size);padding:2px 10px;border-radius:var(--radius-pill);display:inline-block}
+.text-indicator.live{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
+.text-indicator.traced{background:var(--canvas-tint);color:var(--accent-gold-deep)}
+
+/* ---- análisis de texto: pestaña Texto y diff por palabras ---- */
+.ocr-progress{display:flex;align-items:center;gap:var(--space-2);margin:var(--space-2) 0;font-size:var(--caption-size);color:var(--ink-dim)}
+.ocr-progress .track{flex:1;height:6px;background:var(--canvas-tint);border-radius:var(--radius-pill);overflow:hidden}
+.ocr-progress .bar{height:100%;width:0;background:var(--primary);transition:width .15s}
+.ocr-progress .pct{font-family:var(--font-mono);min-width:190px;text-align:right}
+.text-diff-body{font-size:var(--body-md-size);line-height:1.9;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4);margin-top:var(--space-3)}
+.tw-del{color:var(--sev-high);text-decoration:line-through}
+.tw-add{color:var(--sev-low);font-weight:600}
+.tw-eq{color:var(--ink)}
+[data-idx]{cursor:pointer;border-radius:3px;padding:0 2px}
+[data-idx]:hover{background:var(--surface-raised)}
+
+/* ---- Objetivo 4: panel de zonas diferentes ---- */
+#regionsPanel{display:none;margin-top:var(--space-4);border:0.5px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--elevation-1);padding:var(--space-3) var(--space-4)}
+.regions-toolbar{display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim)}
+.regions-toolbar label{display:inline-flex;align-items:center;gap:6px}
+.regions-toolbar input[type=number],.regions-toolbar select{border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-ui);font-size:12px;color:var(--ink);background:var(--canvas)}
+.regions-list{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.region-row{display:grid;grid-template-columns:24px 1fr 1fr 1fr;gap:var(--space-2);align-items:center;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--caption-size);color:var(--ink-dim)}
+.region-row:hover{background:var(--surface-raised)}
+.region-row.active{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
+.region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--sev-low);color:#08130e;font-weight:700;font-size:11px}
+.region-coords{font-family:var(--font-mono)}
+
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.001ms!important}
 }
@@ -132,26 +166,66 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 
 <div class="app-header">
   <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
-  <div class="app-sub">Comparación píxel a píxel · CIEDE2000 · espacio Lab</div>
+  <div class="app-sub">Comparación píxel a píxel · CIEDE2000 · espacio Lab · PDF, .ai, SVG, JPG, PNG</div>
 </div>
 
 <div class="grid2">
   <div>
     <div class="field-label">Imagen A — original / aprobado</div>
     <div class="drop-zone" id="dropA">
-      <input type="file" accept="image/*" id="fileA">
+      <input type="file" accept=".pdf,.ai,.svg,image/*" id="fileA">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
       <div class="name" id="nameA">ningún archivo</div>
+    </div>
+    <div class="pdf-controls" id="pdfControlsA">
+      <label>PPP
+        <select id="dpiA">
+          <option value="150">150</option>
+          <option value="300" selected>300</option>
+          <option value="600">600</option>
+        </select>
+      </label>
+      <label id="pageRowA" style="display:none">Página
+        <select id="pageA"></select>
+      </label>
+      <span class="text-indicator" id="textIndicatorA"></span>
+      <label id="ocrLangWrapA" style="display:none">Idioma OCR
+        <select id="ocrLangA">
+          <option value="spa" selected>Español</option>
+          <option value="eng">Inglés</option>
+        </select>
+      </label>
+      <button class="action" id="btnForceOcrA" style="display:none">Forzar OCR</button>
     </div>
   </div>
   <div>
     <div class="field-label">Imagen B — revisión nueva</div>
     <div class="drop-zone" id="dropB">
-      <input type="file" accept="image/*" id="fileB">
+      <input type="file" accept=".pdf,.ai,.svg,image/*" id="fileB">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
       <div class="name" id="nameB">ningún archivo</div>
+    </div>
+    <div class="pdf-controls" id="pdfControlsB">
+      <label>PPP
+        <select id="dpiB">
+          <option value="150">150</option>
+          <option value="300" selected>300</option>
+          <option value="600">600</option>
+        </select>
+      </label>
+      <label id="pageRowB" style="display:none">Página
+        <select id="pageB"></select>
+      </label>
+      <span class="text-indicator" id="textIndicatorB"></span>
+      <label id="ocrLangWrapB" style="display:none">Idioma OCR
+        <select id="ocrLangB">
+          <option value="spa" selected>Español</option>
+          <option value="eng">Inglés</option>
+        </select>
+      </label>
+      <button class="action" id="btnForceOcrB" style="display:none">Forzar OCR</button>
     </div>
   </div>
 </div>
@@ -207,19 +281,53 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <button class="tab" data-tab="imgA">Imagen A</button>
     <button class="tab" data-tab="imgB">Imagen B</button>
     <button class="tab" data-tab="heatmap">Mapa ΔE</button>
+    <button class="tab" data-tab="texto">Texto</button>
   </div>
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot dot-high"></div>ΔE alto (>15)</div>
-    <div class="legend-item"><div class="legend-dot dot-mid"></div>ΔE medio (5–15)</div>
-    <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">5</span>–5)</div>
+
+  <div id="imageTabsPane">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot dot-high"></div>ΔE alto (>15)</div>
+      <div class="legend-item"><div class="legend-dot dot-mid"></div>ΔE medio (5–15)</div>
+      <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">5</span>–5)</div>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mainCanvas"></canvas>
+      <canvas id="regionsCanvas"></canvas>
+    </div>
+    <div class="hint">Mueve el cursor para ver valores ΔE · Rueda del ratón: zoom · Arrastrar: desplazar · Doble clic: restablecer</div>
+
+    <div id="regionsPanel">
+      <div class="regions-toolbar">
+        <label><input type="checkbox" id="toggleRegions" checked> Mostrar recuadros</label>
+        <label>Tamaño mín. <input type="number" id="regionMinSize" value="20" min="1" style="width:60px"> px</label>
+        <label>Ordenar por
+          <select id="regionsSortBy">
+            <option value="id">Número</option>
+            <option value="de">ΔE máximo</option>
+          </select>
+        </label>
+        <span class="hint" style="margin:0">Navega con ← → o N/P</span>
+      </div>
+      <div class="regions-list" id="regionsList"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="action" id="btnExport"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg> Exportar vista actual</button>
+      <button class="action" id="btnExportReport"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg> Exportar informe</button>
+    </div>
   </div>
-  <div class="canvas-wrap" id="canvasWrap">
-    <canvas id="mainCanvas"></canvas>
-  </div>
-  <div class="hint">Mueve el cursor para ver valores ΔE · Rueda del ratón: zoom · Arrastrar: desplazar · Doble clic: restablecer</div>
-  <div class="btn-row">
-    <button class="action" id="btnExport"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg> Exportar vista actual</button>
-    <button class="action" id="btnExportReport"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg> Exportar informe</button>
+
+  <div id="textPane" style="display:none">
+    <div class="btn-row" style="margin-top:0">
+      <button class="action primary" id="btnAnalyzeText">Analizar texto</button>
+    </div>
+    <div class="ocr-progress" id="ocrProgressA" style="display:none">
+      <span>OCR A</span><div class="track"><div class="bar"></div></div><span class="pct"></span>
+    </div>
+    <div class="ocr-progress" id="ocrProgressB" style="display:none">
+      <span>OCR B</span><div class="track"><div class="bar"></div></div><span class="pct"></span>
+    </div>
+    <div id="textDiffPanel"></div>
   </div>
 </div>
 
@@ -233,792 +341,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 </div>
 
-<script>
-const fileA=document.getElementById('fileA'),fileB=document.getElementById('fileB');
-const dropA=document.getElementById('dropA'),dropB=document.getElementById('dropB');
-const nameA=document.getElementById('nameA'),nameB=document.getElementById('nameB');
-const btnCompare=document.getElementById('btnCompare');
-const status=document.getElementById('status');
-const noteBox=document.getElementById('noteBox');
-const mainCanvas=document.getElementById('mainCanvas');
-const ctx=mainCanvas.getContext('2d');
-const zoomBox=document.getElementById('zoomBox');
-const zoomCanvas=document.getElementById('zoomCanvas');
-const zctx=zoomCanvas.getContext('2d');
-const statsRow=document.getElementById('statsRow');
-const resultsArea=document.getElementById('resultsArea');
-const threshSlider=document.getElementById('thresh');
-const threshVal=document.getElementById('threshVal');
-const legendThreshVal=document.getElementById('legendThreshVal');
-const alignSection=document.getElementById('alignSection');
-const alignCanvasA=document.getElementById('alignCanvasA'),alignCanvasB=document.getElementById('alignCanvasB');
-const refAInfo=document.getElementById('refAInfo'),refBInfo=document.getElementById('refBInfo');
-const alignWrapEls={A:document.getElementById('alignWrapA'),B:document.getElementById('alignWrapB')};
-const alignCanvasEls={A:alignCanvasA,B:alignCanvasB};
-const refMarkerEls={A:document.getElementById('refMarkerA'),B:document.getElementById('refMarkerB')};
-const hoverMarkerEls={A:document.getElementById('hoverMarkerA'),B:document.getElementById('hoverMarkerB')};
-const alignZoomBox=document.getElementById('alignZoomBox');
-const alignZoomCanvas=document.getElementById('alignZoomCanvas');
-const azctx=alignZoomCanvas.getContext('2d');
-const alignZoomInfo=document.getElementById('alignZoomInfo');
-const ALIGN_ZOOM_WIN=28;
-
-let imgA=null,imgB=null,currentTab='overlay';
-let overlayData=null,heatmapData=null,pixelDEmap=null;
-let imgAData=null,imgBData=null;
-let cW=0,cH=0;
-let diffCount=0,deMax=0,pctDiff=0;
-let refA=null,refB=null;
-let currentRunId=0;
-let deWorker=null;
-let reportRefA=null,reportRefB=null,reportOffset={dx:0,dy:0};
-
-const alignViewState={A:{zoom:1,panX:0,panY:0},B:{zoom:1,panX:0,panY:0}};
-let alignDrag=null;
-const ALIGN_ZOOM_MAX=40;
-
-const viewState={
-  overlay:{zoom:1,panX:0,panY:0},
-  imgA:{zoom:1,panX:0,panY:0},
-  imgB:{zoom:1,panX:0,panY:0},
-  heatmap:{zoom:1,panX:0,panY:0}
-};
-const ZOOM_MIN=1,ZOOM_MAX=20;
-let isDragging=false;
-
-function resetViewState(){
-  Object.keys(viewState).forEach(k=>{viewState[k].zoom=1;viewState[k].panX=0;viewState[k].panY=0;});
-}
-
-function fitScale(){
-  if(!cW||!cH)return 1;
-  const r=canvasWrap.getBoundingClientRect();
-  return Math.min(r.width/cW,r.height/cH);
-}
-
-function applyCanvasTransform(){
-  if(!cW||!cH)return;
-  const st=viewState[currentTab];
-  const base=fitScale();
-  mainCanvas.style.width=(cW*base*st.zoom)+'px';
-  mainCanvas.style.height=(cH*base*st.zoom)+'px';
-  mainCanvas.style.transform=`translate(${st.panX}px, ${st.panY}px)`;
-}
-
-function loadImg(file){
-  return new Promise((res,rej)=>{
-    if(!file.type||!file.type.startsWith('image/')){rej(new Error('el archivo no es una imagen'));return;}
-    const img=new Image();
-    const url=URL.createObjectURL(file);
-    img.onload=()=>{img._objectUrl=url;res(img);};
-    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('no se pudo cargar la imagen'));};
-    img.src=url;
-  });
-}
-
-async function handleFileSelected(file,which){
-  if(!file)return;
-  const nameEl=which==='A'?nameA:nameB;
-  const prevImg=which==='A'?imgA:imgB;
-  const zoneEl=which==='A'?dropA:dropB;
-  try{
-    const img=await loadImg(file);
-    if(prevImg&&prevImg._objectUrl)URL.revokeObjectURL(prevImg._objectUrl);
-    if(which==='A')imgA=img;else imgB=img;
-    nameEl.textContent=file.name;
-    zoneEl.classList.add('filled');
-    status.textContent='';
-    hideResults();
-    resetRefPoints();
-    checkReady();
-    updateAlignSection();
-  }catch(err){
-    status.textContent='Error al cargar imagen '+which+': '+err.message;
-  }
-}
-
-fileA.onchange=e=>{if(e.target.files[0])handleFileSelected(e.target.files[0],'A');};
-fileB.onchange=e=>{if(e.target.files[0])handleFileSelected(e.target.files[0],'B');};
-
-function setupDropZone(zone,which){
-  ['dragenter','dragover'].forEach(evt=>zone.addEventListener(evt,e=>{e.preventDefault();zone.classList.add('drag-over');}));
-  ['dragleave','dragend'].forEach(evt=>zone.addEventListener(evt,()=>zone.classList.remove('drag-over')));
-  zone.addEventListener('drop',e=>{
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    const file=e.dataTransfer.files&&e.dataTransfer.files[0];
-    if(file)handleFileSelected(file,which);
-  });
-}
-setupDropZone(dropA,'A');
-setupDropZone(dropB,'B');
-
-function checkReady(){
-  btnCompare.disabled=!(imgA&&imgB);
-}
-
-function hideResults(){
-  statsRow.style.display='none';
-  resultsArea.style.display='none';
-  noteBox.style.display='none';
-  overlayData=null;heatmapData=null;pixelDEmap=null;
-}
-
-threshSlider.oninput=()=>{
-  threshVal.textContent=threshSlider.value;
-  legendThreshVal.textContent=threshSlider.value;
-  if(!pixelDEmap)return;
-  recolorFromThreshold(parseInt(threshSlider.value));
-};
-
-btnCompare.onclick=compare;
-document.getElementById('btnReset').onclick=resetAll;
-
-// ---- alineación por punto de referencia ----
-
-function alignFitScale(which){
-  const canvas=alignCanvasEls[which];
-  if(!canvas.width||!canvas.height)return 1;
-  const r=alignWrapEls[which].getBoundingClientRect();
-  return Math.min(r.width/canvas.width,r.height/canvas.height);
-}
-
-function alignOrigin(which){
-  const canvas=alignCanvasEls[which];
-  const st=alignViewState[which];
-  const base=alignFitScale(which);
-  const scale=base*st.zoom;
-  const r=alignWrapEls[which].getBoundingClientRect();
-  return{
-    left:r.width/2-(canvas.width*scale)/2+st.panX,
-    top:r.height/2-(canvas.height*scale)/2+st.panY,
-    scale
-  };
-}
-
-function applyAlignTransform(which){
-  const canvas=alignCanvasEls[which];
-  if(!canvas.width||!canvas.height)return;
-  const st=alignViewState[which];
-  const base=alignFitScale(which);
-  canvas.style.width=(canvas.width*base*st.zoom)+'px';
-  canvas.style.height=(canvas.height*base*st.zoom)+'px';
-  canvas.style.transform=`translate(${st.panX}px, ${st.panY}px)`;
-  positionRefMarker(which);
-}
-
-function positionRefMarker(which){
-  const ref=which==='A'?refA:refB;
-  const marker=refMarkerEls[which];
-  if(!ref){marker.style.display='none';return;}
-  const o=alignOrigin(which);
-  marker.style.left=(o.left+ref.x*o.scale)+'px';
-  marker.style.top=(o.top+ref.y*o.scale)+'px';
-  marker.style.display='block';
-}
-
-function initAlignCanvas(which,img){
-  const canvas=alignCanvasEls[which];
-  canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
-  canvas.getContext('2d').drawImage(img,0,0);
-  alignViewState[which]={zoom:1,panX:0,panY:0};
-  applyAlignTransform(which);
-}
-
-function updateAlignSection(){
-  if(imgA&&imgB){
-    alignSection.style.display='block';
-    initAlignCanvas('A',imgA);
-    initAlignCanvas('B',imgB);
-  }else{
-    alignSection.style.display='none';
-  }
-}
-
-function alignEventToNatural(e,canvas){
-  const rect=canvas.getBoundingClientRect();
-  const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
-  return{x:Math.round((e.clientX-rect.left)*scaleX),y:Math.round((e.clientY-rect.top)*scaleY)};
-}
-
-function positionHoverMarker(which,clientX,clientY){
-  const r=alignWrapEls[which].getBoundingClientRect();
-  const marker=hoverMarkerEls[which];
-  marker.style.left=(clientX-r.left)+'px';
-  marker.style.top=(clientY-r.top)+'px';
-  marker.style.display='block';
-}
-function hideHoverMarker(which){
-  hoverMarkerEls[which].style.display='none';
-}
-
-function setupAlignInteraction(which){
-  const wrap=alignWrapEls[which];
-  const canvas=alignCanvasEls[which];
-
-  wrap.addEventListener('wheel',e=>{
-    if(!canvas.width||!canvas.height)return;
-    e.preventDefault();
-    const st=alignViewState[which];
-    const r=wrap.getBoundingClientRect();
-    const base=alignFitScale(which);
-    const oldScale=base*st.zoom;
-    const mx=e.clientX-r.left,my=e.clientY-r.top;
-    const cLeft=r.width/2-(canvas.width*oldScale)/2+st.panX;
-    const cTop=r.height/2-(canvas.height*oldScale)/2+st.panY;
-    const srcX=(mx-cLeft)/oldScale,srcY=(my-cTop)/oldScale;
-    const factor=e.deltaY<0?1.15:1/1.15;
-    const newZoom=Math.min(ALIGN_ZOOM_MAX,Math.max(ZOOM_MIN,st.zoom*factor));
-    const newScale=base*newZoom;
-    st.panX=mx-srcX*newScale-(r.width/2-(canvas.width*newScale)/2);
-    st.panY=my-srcY*newScale-(r.height/2-(canvas.height*newScale)/2);
-    st.zoom=newZoom;
-    applyAlignTransform(which);
-  },{passive:false});
-
-  wrap.addEventListener('mousedown',e=>{
-    if(!canvas.width||!canvas.height)return;
-    alignDrag={which,startX:e.clientX,startY:e.clientY,panX:alignViewState[which].panX,panY:alignViewState[which].panY,moved:false};
-  });
-
-  wrap.addEventListener('dblclick',()=>{
-    if(!canvas.width||!canvas.height)return;
-    alignViewState[which].zoom=1;alignViewState[which].panX=0;alignViewState[which].panY=0;
-    applyAlignTransform(which);
-  });
-}
-setupAlignInteraction('A');
-setupAlignInteraction('B');
-
-window.addEventListener('mousemove',e=>{
-  if(!alignDrag)return;
-  const dx=e.clientX-alignDrag.startX,dy=e.clientY-alignDrag.startY;
-  if(!alignDrag.moved&&Math.hypot(dx,dy)>4){
-    alignDrag.moved=true;
-    alignCanvasEls[alignDrag.which].style.cursor='grabbing';
-    alignZoomBox.style.display='none';
-    hideHoverMarker(alignDrag.which);
-  }
-  if(alignDrag.moved){
-    const st=alignViewState[alignDrag.which];
-    st.panX=alignDrag.panX+dx;st.panY=alignDrag.panY+dy;
-    applyAlignTransform(alignDrag.which);
-  }
-});
-window.addEventListener('mouseup',e=>{
-  if(!alignDrag)return;
-  const{which,moved}=alignDrag;
-  if(!moved){
-    const canvas=alignCanvasEls[which];
-    const n=alignEventToNatural(e,canvas);
-    if(which==='A'){refA=n;refAInfo.textContent=`Punto A: (${n.x}, ${n.y})`;}
-    else{refB=n;refBInfo.textContent=`Punto B: (${n.x}, ${n.y})`;}
-    positionRefMarker(which);
-  }else{
-    alignCanvasEls[which].style.cursor='';
-  }
-  alignDrag=null;
-});
-
-function drawAlignLoupe(img,nx,ny){
-  const win=ALIGN_ZOOM_WIN;
-  const factor=alignZoomCanvas.width/win;
-  nx=Math.max(0,Math.min(nx,img.naturalWidth-1));
-  ny=Math.max(0,Math.min(ny,img.naturalHeight-1));
-  let sx=Math.round(nx-win/2),sy=Math.round(ny-win/2);
-  sx=Math.max(0,Math.min(sx,Math.max(0,img.naturalWidth-win)));
-  sy=Math.max(0,Math.min(sy,Math.max(0,img.naturalHeight-win)));
-  const cw=Math.min(win,img.naturalWidth),ch=Math.min(win,img.naturalHeight);
-  azctx.imageSmoothingEnabled=false;
-  azctx.clearRect(0,0,alignZoomCanvas.width,alignZoomCanvas.height);
-  azctx.drawImage(img,sx,sy,cw,ch,0,0,cw*factor,ch*factor);
-  const cxp=(nx-sx+0.5)*factor,cyp=(ny-sy+0.5)*factor;
-  azctx.strokeStyle='#00e0ff';azctx.lineWidth=1.5;
-  azctx.strokeRect(Math.round(cxp-factor/2),Math.round(cyp-factor/2),factor,factor);
-  azctx.beginPath();
-  azctx.moveTo(cxp-8,cyp);azctx.lineTo(cxp+8,cyp);
-  azctx.moveTo(cxp,cyp-8);azctx.lineTo(cxp,cyp+8);
-  azctx.stroke();
-}
-
-function setupAlignLoupe(which,getImg){
-  const canvas=alignCanvasEls[which];
-  canvas.onmousemove=e=>{
-    if(alignDrag)return;
-    const img=getImg();
-    if(!img)return;
-    const n=alignEventToNatural(e,canvas);
-    positionHoverMarker(which,e.clientX,e.clientY);
-    alignZoomBox.style.display='block';
-    let lx=e.clientX+18,ly=e.clientY-90;
-    if(lx+180>window.innerWidth)lx=e.clientX-190;
-    if(ly<0)ly=e.clientY+10;
-    alignZoomBox.style.left=lx+'px';alignZoomBox.style.top=ly+'px';
-    drawAlignLoupe(img,n.x,n.y);
-    alignZoomInfo.textContent=`px: ${n.x}, ${n.y}`;
-  };
-  canvas.onmouseleave=()=>{alignZoomBox.style.display='none';hideHoverMarker(which);};
-}
-setupAlignLoupe('A',()=>imgA);
-setupAlignLoupe('B',()=>imgB);
-
-function resetRefPoints(){
-  refA=null;refB=null;
-  refAInfo.textContent='Sin punto marcado';
-  refBInfo.textContent='Sin punto marcado';
-  positionRefMarker('A');
-  positionRefMarker('B');
-}
-document.getElementById('btnResetRef').onclick=resetRefPoints;
-
-function computeAlignedRegion(){
-  let dx=0,dy=0;
-  const aligned=!!(refA&&refB);
-  if(aligned){dx=refB.x-refA.x;dy=refB.y-refA.y;}
-  const ax0=Math.max(0,-dx),ax1=Math.min(imgA.naturalWidth,imgB.naturalWidth-dx);
-  const ay0=Math.max(0,-dy),ay1=Math.min(imgA.naturalHeight,imgB.naturalHeight-dy);
-  const w=Math.floor(ax1-ax0),h=Math.floor(ay1-ay0);
-  const rectA={x:Math.round(ax0),y:Math.round(ay0)};
-  const rectB={x:Math.round(ax0+dx),y:Math.round(ay0+dy)};
-  return{w,h,rectA,rectB,dx,dy,aligned};
-}
-
-function getPixelsRegion(img,rect,w,h){
-  const c=document.createElement('canvas');
-  c.width=w;c.height=h;
-  const cx=c.getContext('2d');
-  cx.drawImage(img,rect.x,rect.y,w,h,0,0,w,h);
-  return cx.getImageData(0,0,w,h);
-}
-
-function updateNotes(region){
-  const notes=[];
-  const sameDims=imgA.naturalWidth===imgB.naturalWidth&&imgA.naturalHeight===imgB.naturalHeight;
-  if(!sameDims){
-    notes.push(`Imagen A es ${imgA.naturalWidth}×${imgA.naturalHeight}px, Imagen B es ${imgB.naturalWidth}×${imgB.naturalHeight}px. Se comparó el área común de ${region.w}×${region.h}px`+(region.aligned?` (alineada con offset dx=${region.dx}, dy=${region.dy}).`:'.'));
-  }else if(region.aligned){
-    notes.push(`Alineación aplicada con offset dx=${region.dx}, dy=${region.dy}. Área comparada: ${region.w}×${region.h}px.`);
-  }
-  if(region.w*region.h>0&&region.w*region.h<1600){
-    notes.push('Aviso: el área de solapamiento es muy pequeña, las estadísticas pueden no ser representativas.');
-  }
-  if(notes.length){
-    noteBox.innerHTML=notes.join('<br>');
-    noteBox.style.display='block';
-  }else{
-    noteBox.style.display='none';
-  }
-}
-
-// ---- worker de cálculo ΔE2000 (inline, vía Blob) ----
-
-function workerEntry(){
-  const LINEAR_LUT=new Float64Array(256);
-  for(let i=0;i<256;i++){
-    const v=i/255;
-    LINEAR_LUT[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);
-  }
-  function rgbToXyz(r,g,b){
-    r=LINEAR_LUT[r];g=LINEAR_LUT[g];b=LINEAR_LUT[b];
-    return[
-      r*0.4124564+g*0.3575761+b*0.1804375,
-      r*0.2126729+g*0.7151522+b*0.0721750,
-      r*0.0193339+g*0.1191920+b*0.9503041
-    ];
-  }
-  function xyzToLab(x,y,z){
-    function f(t){return t>0.008856?Math.cbrt(t):(7.787*t+16/116);}
-    x/=0.95047;y/=1.00000;z/=1.08883;
-    return[116*f(y)-16,500*(f(x)-f(y)),200*(f(y)-f(z))];
-  }
-  function rgbToLab(r,g,b){
-    const[x,y,z]=rgbToXyz(r,g,b);
-    return xyzToLab(x,y,z);
-  }
-  function deltaE2000(lab1,lab2){
-    const[L1,a1,b1]=lab1,[L2,a2,b2]=lab2;
-    const kL=1,kC=1,kH=1;
-    const C1=Math.sqrt(a1*a1+b1*b1),C2=Math.sqrt(a2*a2+b2*b2);
-    const Cb=(C1+C2)/2;
-    const Cb7=Math.pow(Cb,7);
-    const G=0.5*(1-Math.sqrt(Cb7/(Cb7+Math.pow(25,7))));
-    const a1p=a1*(1+G),a2p=a2*(1+G);
-    const C1p=Math.sqrt(a1p*a1p+b1*b1),C2p=Math.sqrt(a2p*a2p+b2*b2);
-    function hp(bp,ap){
-      if(Math.abs(ap)<1e-10&&Math.abs(bp)<1e-10)return 0;
-      let h=Math.atan2(bp,ap)*180/Math.PI;
-      if(h<0)h+=360;
-      return h;
-    }
-    const h1p=hp(b1,a1p),h2p=hp(b2,a2p);
-    const dLp=L2-L1,dCp=C2p-C1p;
-    let dhp;
-    if(C1p*C2p===0)dhp=0;
-    else if(Math.abs(h2p-h1p)<=180)dhp=h2p-h1p;
-    else if(h2p-h1p>180)dhp=h2p-h1p-360;
-    else dhp=h2p-h1p+360;
-    const dHp=2*Math.sqrt(C1p*C2p)*Math.sin(dhp*Math.PI/360);
-    const Lbp=(L1+L2)/2,Cbp=(C1p+C2p)/2;
-    let Hbp;
-    if(C1p*C2p===0)Hbp=h1p+h2p;
-    else if(Math.abs(h1p-h2p)<=180)Hbp=(h1p+h2p)/2;
-    else if(h1p+h2p<360)Hbp=(h1p+h2p+360)/2;
-    else Hbp=(h1p+h2p-360)/2;
-    const T=1-0.17*Math.cos((Hbp-30)*Math.PI/180)+0.24*Math.cos(2*Hbp*Math.PI/180)+0.32*Math.cos((3*Hbp+6)*Math.PI/180)-0.20*Math.cos((4*Hbp-63)*Math.PI/180);
-    const SL=1+0.015*Math.pow(Lbp-50,2)/Math.sqrt(20+Math.pow(Lbp-50,2));
-    const SC=1+0.045*Cbp,SH=1+0.015*Cbp*T;
-    const Cbp7=Math.pow(Cbp,7);
-    const RC=2*Math.sqrt(Cbp7/(Cbp7+Math.pow(25,7)));
-    const dTheta=30*Math.exp(-Math.pow((Hbp-275)/25,2));
-    const RT=-Math.sin(2*dTheta*Math.PI/180)*RC;
-    return Math.sqrt(Math.pow(dLp/(kL*SL),2)+Math.pow(dCp/(kC*SC),2)+Math.pow(dHp/(kH*SH),2)+RT*(dCp/(kC*SC))*(dHp/(kH*SH)));
-  }
-  function heatColor(t){
-    if(t<0.25){const f=t/0.25;return[0,Math.round(f*200),Math.round(100+f*155)];}
-    if(t<0.5){const f=(t-0.25)/0.25;return[Math.round(f*255),Math.round(200-f*130),255];}
-    if(t<0.75){const f=(t-0.5)/0.25;return[255,Math.round(70+f*100),Math.round(255-f*255)];}
-    const f=(t-0.75)/0.25;return[255,Math.round(170-f*100),0];
-  }
-
-  self.onmessage=function(e){
-    const msg=e.data;
-    if(msg.type!=='compute')return;
-    const{runId,width,height,threshold,bufA,bufB}=msg;
-    const dA=new Uint8ClampedArray(bufA),dB=new Uint8ClampedArray(bufB);
-    const n=width*height;
-    const overlay=new Uint8ClampedArray(n*4);
-    const heat=new Uint8ClampedArray(n*4);
-    const deMap=new Float32Array(n);
-    let diffCount=0,deMax=0;
-    const progressStep=Math.max(1,Math.floor(n/50));
-
-    for(let i=0;i<n;i++){
-      const o=i*4;
-      const rA=dA[o],gA=dA[o+1],bA=dA[o+2];
-      const rB=dB[o],gB=dB[o+1],bB=dB[o+2];
-      const labA=rgbToLab(rA,gA,bA);
-      const labB=rgbToLab(rB,gB,bB);
-      const de=deltaE2000(labA,labB);
-      deMap[i]=de;
-      if(de>deMax)deMax=de;
-
-      if(de>=threshold){
-        diffCount++;
-        let or_,og,ob;
-        if(de>15){or_=255;og=59;ob=59;}
-        else if(de>5){or_=255;og=170;ob=0;}
-        else{or_=0;og=204;ob=136;}
-        overlay[o]=or_;overlay[o+1]=og;overlay[o+2]=ob;overlay[o+3]=210;
-      }else{
-        overlay[o]=rA;overlay[o+1]=gA;overlay[o+2]=bA;overlay[o+3]=80;
-      }
-
-      const norm=Math.min(de/30,1);
-      const hc=heatColor(norm);
-      heat[o]=hc[0];heat[o+1]=hc[1];heat[o+2]=hc[2];heat[o+3]=255;
-
-      if(i%progressStep===0)self.postMessage({type:'progress',runId,done:i,total:n});
-    }
-
-    self.postMessage({
-      type:'result',runId,width,height,diffCount,deMax,
-      overlayBuf:overlay.buffer,heatmapBuf:heat.buffer,deMapBuf:deMap.buffer
-    },[overlay.buffer,heat.buffer,deMap.buffer]);
-  };
-}
-
-function getWorker(){
-  if(!deWorker){
-    const blob=new Blob(['('+workerEntry.toString()+')()'],{type:'application/javascript'});
-    const url=URL.createObjectURL(blob);
-    deWorker=new Worker(url);
-    deWorker.onmessage=onWorkerMessage;
-    deWorker.onerror=onWorkerError;
-  }
-  return deWorker;
-}
-
-function onWorkerMessage(e){
-  const msg=e.data;
-  if(msg.runId!==currentRunId)return;
-  if(msg.type==='progress'){
-    status.textContent=`Analizando… ${Math.round(msg.done/msg.total*100)}%`;
-  }else if(msg.type==='result'){
-    cW=msg.width;cH=msg.height;
-    overlayData=new ImageData(new Uint8ClampedArray(msg.overlayBuf),cW,cH);
-    heatmapData=new ImageData(new Uint8ClampedArray(msg.heatmapBuf),cW,cH);
-    pixelDEmap=new Float32Array(msg.deMapBuf);
-    diffCount=msg.diffCount;deMax=msg.deMax;
-    pctDiff=diffCount/(cW*cH)*100;
-    resetViewState();
-
-    document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
-    document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
-    document.getElementById('sDEmax').textContent=deMax.toFixed(1);
-
-    statsRow.style.display='grid';
-    resultsArea.style.display='block';
-    status.textContent='';
-
-    renderTab(currentTab);
-    btnCompare.disabled=false;
-    threshSlider.disabled=false;
-  }
-}
-
-function onWorkerError(err){
-  status.textContent='Error al analizar: '+(err.message||'desconocido');
-  btnCompare.disabled=false;
-  threshSlider.disabled=false;
-}
-
-async function compare(){
-  if(!imgA||!imgB)return;
-  currentRunId++;
-  const runId=currentRunId;
-  status.textContent='Preparando…';
-  btnCompare.disabled=true;
-  threshSlider.disabled=true;
-
-  const region=computeAlignedRegion();
-  if(region.w<=0||region.h<=0){
-    status.textContent='Error: no hay superposición entre las imágenes con los puntos de referencia elegidos.';
-    btnCompare.disabled=false;
-    threshSlider.disabled=false;
-    return;
-  }
-
-  cW=region.w;cH=region.h;
-  reportRefA=region.aligned?{...refA}:null;
-  reportRefB=region.aligned?{...refB}:null;
-  reportOffset={dx:region.dx,dy:region.dy};
-
-  imgAData=getPixelsRegion(imgA,region.rectA,cW,cH);
-  imgBData=getPixelsRegion(imgB,region.rectB,cW,cH);
-
-  updateNotes(region);
-
-  const thresh=parseInt(threshSlider.value);
-  const bufA=imgAData.data.buffer.slice(0);
-  const bufB=imgBData.data.buffer.slice(0);
-
-  status.textContent='Analizando… 0%';
-  const worker=getWorker();
-  worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,bufA,bufB},[bufA,bufB]);
-}
-
-function recolorFromThreshold(thresh){
-  if(!pixelDEmap)return;
-  const n=cW*cH;
-  const dA=imgAData.data;
-  let count=0;
-  for(let i=0;i<n;i++){
-    const o=i*4;
-    const de=pixelDEmap[i];
-    if(de>=thresh){
-      count++;
-      let or_,og,ob;
-      if(de>15){or_=255;og=59;ob=59;}
-      else if(de>5){or_=255;og=170;ob=0;}
-      else{or_=0;og=204;ob=136;}
-      overlayData.data[o]=or_;overlayData.data[o+1]=og;overlayData.data[o+2]=ob;overlayData.data[o+3]=210;
-    }else{
-      overlayData.data[o]=dA[o];overlayData.data[o+1]=dA[o+1];overlayData.data[o+2]=dA[o+2];overlayData.data[o+3]=80;
-    }
-  }
-  diffCount=count;
-  pctDiff=count/n*100;
-  document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
-  document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
-  if(currentTab==='overlay')renderTab('overlay');
-}
-
-function renderTab(tab){
-  mainCanvas.width=cW;mainCanvas.height=cH;
-  if(tab==='overlay'){ctx.putImageData(overlayData,0,0);}
-  else if(tab==='imgA'){ctx.putImageData(imgAData,0,0);}
-  else if(tab==='imgB'){ctx.putImageData(imgBData,0,0);}
-  else if(tab==='heatmap'){ctx.putImageData(heatmapData,0,0);}
-  applyCanvasTransform();
-}
-
-window.addEventListener('resize',()=>{
-  applyCanvasTransform();
-  if(imgA)applyAlignTransform('A');
-  if(imgB)applyAlignTransform('B');
-});
-
-document.querySelectorAll('.tab').forEach(t=>{
-  t.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    currentTab=t.dataset.tab;
-    renderTab(currentTab);
-  };
-});
-
-function resetAll(){
-  currentRunId++;
-  if(imgA&&imgA._objectUrl)URL.revokeObjectURL(imgA._objectUrl);
-  if(imgB&&imgB._objectUrl)URL.revokeObjectURL(imgB._objectUrl);
-  imgA=null;imgB=null;
-  imgAData=null;imgBData=null;
-  overlayData=null;heatmapData=null;pixelDEmap=null;
-  cW=0;cH=0;
-  diffCount=0;deMax=0;pctDiff=0;
-  reportRefA=null;reportRefB=null;reportOffset={dx:0,dy:0};
-
-  fileA.value='';fileB.value='';
-  nameA.textContent='ningún archivo';nameB.textContent='ningún archivo';
-  dropA.classList.remove('filled');dropB.classList.remove('filled');
-  btnCompare.disabled=true;
-  threshSlider.disabled=false;
-
-  statsRow.style.display='none';
-  resultsArea.style.display='none';
-  noteBox.style.display='none';
-  status.textContent='';
-
-  resetRefPoints();
-  resetViewState();
-  alignSection.style.display='none';
-  ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
-}
-
-const canvasWrap=document.getElementById('canvasWrap');
-canvasWrap.onmousemove=e=>{
-  if(!pixelDEmap||isDragging)return;
-  const rect=mainCanvas.getBoundingClientRect();
-  const scaleX=cW/mainCanvas.offsetWidth;
-  const scaleY=cH/mainCanvas.offsetHeight;
-  const px=Math.floor((e.clientX-rect.left)*scaleX);
-  const py=Math.floor((e.clientY-rect.top)*scaleY);
-  if(px<0||py<0||px>=cW||py>=cH)return;
-
-  const idx=py*cW+px;
-  const de=pixelDEmap[idx];
-  const o=idx*4;
-  const dA=imgAData.data,dB=imgBData.data;
-
-  zoomBox.style.display='block';
-  let lx=e.clientX+18,ly=e.clientY-80;
-  if(lx+160>window.innerWidth)lx=e.clientX-170;
-  if(ly<0)ly=e.clientY+10;
-  zoomBox.style.left=lx+'px';
-  zoomBox.style.top=ly+'px';
-
-  zctx.clearRect(0,0,120,120);
-  const zs=12;
-  const ox=Math.max(0,Math.min(px-5,cW-10));
-  const oy=Math.max(0,Math.min(py-5,cH-10));
-  const slice=new ImageData(10,10);
-  for(let dy=0;dy<10;dy++){
-    for(let dx=0;dx<10;dx++){
-      const si=((oy+dy)*cW+(ox+dx))*4;
-      const di=(dy*10+dx)*4;
-      if(currentTab==='overlay'){
-        slice.data[di]=overlayData.data[si];
-        slice.data[di+1]=overlayData.data[si+1];
-        slice.data[di+2]=overlayData.data[si+2];
-        slice.data[di+3]=255;
-      }else if(currentTab==='imgA'){
-        slice.data[di]=imgAData.data[si];slice.data[di+1]=imgAData.data[si+1];slice.data[di+2]=imgAData.data[si+2];slice.data[di+3]=255;
-      }else if(currentTab==='imgB'){
-        slice.data[di]=imgBData.data[si];slice.data[di+1]=imgBData.data[si+1];slice.data[di+2]=imgBData.data[si+2];slice.data[di+3]=255;
-      }else{
-        slice.data[di]=heatmapData.data[si];slice.data[di+1]=heatmapData.data[si+1];slice.data[di+2]=heatmapData.data[si+2];slice.data[di+3]=255;
-      }
-    }
-  }
-  const tmp=document.createElement('canvas');tmp.width=10;tmp.height=10;
-  tmp.getContext('2d').putImageData(slice,0,0);
-  zctx.imageSmoothingEnabled=false;
-  zctx.drawImage(tmp,0,0,120,120);
-  zctx.strokeStyle='rgba(255,255,255,0.7)';
-  zctx.strokeRect(54,54,12,12);
-
-  document.getElementById('zoomInfo').innerHTML=
-    `ΔE: <b>${de.toFixed(2)}</b><br>`+
-    `A: rgb(${dA[o]},${dA[o+1]},${dA[o+2]})<br>`+
-    `B: rgb(${dB[o]},${dB[o+1]},${dB[o+2]})<br>`+
-    `px: ${px},${py}`;
-};
-
-canvasWrap.onmouseleave=()=>{zoomBox.style.display='none';};
-
-canvasWrap.addEventListener('wheel',e=>{
-  if(!cW||!cH)return;
-  e.preventDefault();
-  const st=viewState[currentTab];
-  const r=canvasWrap.getBoundingClientRect();
-  const base=fitScale();
-  const oldScale=base*st.zoom;
-  const mx=e.clientX-r.left,my=e.clientY-r.top;
-  const canvasLeft=r.width/2-(cW*oldScale)/2+st.panX;
-  const canvasTop=r.height/2-(cH*oldScale)/2+st.panY;
-  const srcX=(mx-canvasLeft)/oldScale,srcY=(my-canvasTop)/oldScale;
-  const factor=e.deltaY<0?1.15:1/1.15;
-  const newZoom=Math.min(ZOOM_MAX,Math.max(ZOOM_MIN,st.zoom*factor));
-  const newScale=base*newZoom;
-  st.panX=mx-srcX*newScale-(r.width/2-(cW*newScale)/2);
-  st.panY=my-srcY*newScale-(r.height/2-(cH*newScale)/2);
-  st.zoom=newZoom;
-  applyCanvasTransform();
-},{passive:false});
-
-let dragStart=null;
-canvasWrap.addEventListener('mousedown',e=>{
-  if(!cW||!cH)return;
-  isDragging=true;
-  dragStart={x:e.clientX,y:e.clientY,panX:viewState[currentTab].panX,panY:viewState[currentTab].panY};
-  canvasWrap.classList.add('dragging');
-  zoomBox.style.display='none';
-});
-window.addEventListener('mousemove',e=>{
-  if(!dragStart)return;
-  const st=viewState[currentTab];
-  st.panX=dragStart.panX+(e.clientX-dragStart.x);
-  st.panY=dragStart.panY+(e.clientY-dragStart.y);
-  applyCanvasTransform();
-});
-window.addEventListener('mouseup',()=>{
-  if(dragStart){dragStart=null;isDragging=false;canvasWrap.classList.remove('dragging');}
-});
-canvasWrap.addEventListener('dblclick',()=>{
-  if(!cW||!cH)return;
-  const st=viewState[currentTab];
-  st.zoom=1;st.panX=0;st.panY=0;
-  applyCanvasTransform();
-});
-
-document.getElementById('btnExport').onclick=()=>{
-  if(!overlayData)return;
-  const names={overlay:'overlay',imgA:'imagenA',imgB:'imagenB',heatmap:'mapa_deltaE'};
-  const a=document.createElement('a');
-  a.download='comparacion_'+(names[currentTab]||currentTab)+'.png';
-  a.href=mainCanvas.toDataURL('image/png');
-  a.click();
-};
-
-document.getElementById('btnExportReport').onclick=()=>{
-  if(!pixelDEmap)return;
-  const report={
-    timestamp:new Date().toISOString(),
-    imagenA:{nombre:nameA.textContent,ancho:imgA.naturalWidth,alto:imgA.naturalHeight},
-    imagenB:{nombre:nameB.textContent,ancho:imgB.naturalWidth,alto:imgB.naturalHeight},
-    areaComparada:{ancho:cW,alto:cH},
-    puntosReferencia:(reportRefA&&reportRefB)?{A:reportRefA,B:reportRefB,offset:reportOffset}:null,
-    umbralDE:parseInt(threshSlider.value),
-    pixelesDiferentes:diffCount,
-    porcentajeDiferente:Number(pctDiff.toFixed(2)),
-    deMax:Number(deMax.toFixed(2))
-  };
-  const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.download='informe_comparacion.json';
-  a.href=url;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-</script>
+<script src="./canvas-view.js"></script>
+<script src="./align.js"></script>
+<script src="./pdf-source.js"></script>
+<script src="./text-analysis.js"></script>
+<script src="./regions-panel.js"></script>
+<script src="./app.js"></script>
