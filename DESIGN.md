@@ -56,7 +56,7 @@ Unidad base 8px: `--space-1` 4 · `--space-2` 8 · `--space-3` 12 · `--space-4`
 
 Nivel 0 (plano) es la respuesta por defecto. `--elevation-1` (`rgba(15,34,51,.06) 0 1px 2px`) para tarjetas con leve relieve; `--elevation-2` (`rgba(15,34,51,.08) 0 8px 24px`) solo para paneles flotantes o chrome de mockup de producto. Nada de gradientes ni desenfoques.
 
-## Aplicación en `jpg_pixel_comparator.html`
+## Aplicación en `index.html`
 
 La herramienta pasa de tema oscuro genérico a la piel DMondelo: fondo claro (`--canvas-soft`), texto `--ink`, acción `--primary` (navy), botones y tabs en `--radius-pill`, tarjetas de estadísticas en `--radius-md` con `--elevation-1`, contenedores de imagen en `--radius-lg`, zona de carga en `--radius-xl`, cifras de resultado en `--heading-lg` con `tnum`, etiquetas todo-mayúsculas unificadas al patrón `--micro-cap`.
 
