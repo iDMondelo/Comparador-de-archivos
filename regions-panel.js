@@ -180,6 +180,7 @@ function exportComposite(){
   out.width=cW;out.height=cH;
   const octx=out.getContext('2d');
   octx.drawImage(mainCanvas,0,0);
+  octx.drawImage(maskCanvas,0,0);
   if(regionsVisible&&currentRegions.length)paintRegions(octx,cW/REGION_EXPORT_REF_WIDTH);
   return out;
 }

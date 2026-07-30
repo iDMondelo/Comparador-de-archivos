@@ -67,7 +67,9 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink)}
 .app-title .accent{color:var(--accent-gold-deep);font-weight:var(--weight-bold)}
 .status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:2px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
-.app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint)}
+.app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);background:none;border:none;padding:0;cursor:pointer}
+.app-version:hover{color:var(--primary);text-decoration:underline}
+.app-version:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .app-sub{font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
 .app-dev-notice{font-size:11px;color:var(--ink-faint);margin-top:var(--space-1);flex-basis:100%}
 .field-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2)}
@@ -81,7 +83,7 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .drop-zone .label{font-size:13px;color:var(--ink-dim);margin-top:var(--space-2)}
 .drop-zone .name{font-family:var(--font-mono);font-size:12px;color:var(--ink);margin-top:var(--space-1)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin:var(--space-5) 0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-5) 0}
 .stat{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--elevation-1);padding:var(--space-4) var(--space-3);text-align:center}
 .stat .val{font-family:var(--font-sans);font-variant-numeric:tabular-nums;font-size:var(--heading-lg-size);font-weight:var(--weight-semibold);color:var(--ink)}
 .stat .lbl{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);margin-top:var(--space-1);text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
@@ -92,8 +94,8 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .canvas-wrap{position:relative;overflow:hidden;border-radius:var(--radius-lg);border:0.5px solid var(--border);box-shadow:var(--elevation-1);background:var(--viewer-bg);cursor:grab;height:420px;display:grid;place-items:center}
 .canvas-wrap.dragging{cursor:grabbing}
 canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
-#mainCanvas,#regionsCanvas{grid-area:1/1;max-width:none;max-height:none}
-#regionsCanvas{pointer-events:none}
+#mainCanvas,#maskCanvas,#regionsCanvas{grid-area:1/1;max-width:none;max-height:none}
+#maskCanvas,#regionsCanvas{pointer-events:none}
 .zoom-box{position:fixed;z-index:999;pointer-events:none;border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface);padding:var(--space-2);box-shadow:var(--elevation-2);display:none}
 .zoom-box canvas{display:block;border-radius:var(--radius-xs)}
 .zoom-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);padding:4px 4px 0;line-height:1.6}
@@ -103,6 +105,7 @@ canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .thresh-row input[type=range]{flex:1;accent-color:var(--accent)}
 .thresh-row span{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;color:var(--ink);min-width:28px;text-align:right}
 .hint{font-size:var(--caption-size);color:var(--ink-faint);margin-top:var(--space-2)}
+#threshSuggestNote{display:none;color:var(--primary-deep);font-weight:600;margin-top:calc(var(--space-2) * -1)}
 .btn-row{display:flex;gap:var(--space-2);margin-top:var(--space-4);flex-wrap:wrap}
 button.action{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--primary);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);letter-spacing:var(--button-sm-track);font-family:var(--font-ui);cursor:pointer;background:var(--surface);color:var(--primary);transition:background .15s,border-color .15s,color .15s}
 button.action:hover{background:var(--primary-bg-subdued-hover);border-color:var(--primary-deep);color:var(--primary-deep)}
@@ -123,16 +126,26 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .note-box{font-size:var(--caption-size);color:var(--ink-dim);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3);margin:var(--space-3) 0;line-height:1.6}
 #alignSection{margin-bottom:var(--space-4)}
 #alignSection .title{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2);line-height:1.5}
+.align-guide{font-size:var(--caption-size);font-weight:600;color:var(--primary-deep);margin-bottom:var(--space-2);line-height:1.5}
 .align-canvas-wrap{position:relative;overflow:hidden;height:220px;border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center}
 .align-canvas{display:block;cursor:none}
 .align-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);margin:var(--space-1) 0 var(--space-3)}
-.ref-marker,.hover-marker{position:absolute;pointer-events:none;display:none}
+.ref-markers{position:absolute;inset:0}
+.ref-marker{position:absolute;pointer-events:auto;cursor:grab}
+.ref-marker:active{cursor:grabbing}
+.hover-marker{position:absolute;pointer-events:none;display:none}
 .rm-line{position:absolute;background:var(--marker)}
 .rm-h{width:16px;height:1.5px;left:-8px;top:-0.75px}
 .rm-v{width:1.5px;height:16px;left:-0.75px;top:-8px}
 .rm-circle{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border:1.5px solid var(--marker);border-radius:50%}
 .hover-marker .rm-line{background:#fff}
 .hover-marker .rm-circle{border-color:#fff}
+.ref-marker .rm-badge{position:absolute;left:9px;top:-19px;min-width:15px;padding:0 4px;height:15px;border-radius:8px;background:var(--marker);color:#08130e;font-size:10px;font-weight:700;line-height:15px;text-align:center;pointer-events:none}
+.ref-marker .rm-delete{position:absolute;left:9px;top:1px;width:15px;height:15px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:14px;padding:0;cursor:pointer;opacity:0;transition:opacity .12s}
+.ref-marker:hover .rm-delete,.ref-marker:focus-within .rm-delete{opacity:1}
+.rm-delete:hover{background:var(--sev-high)}
+.align-transform-summary{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-1) 0;display:none}
+.align-transform-warn{font-size:var(--caption-size);color:var(--accent-gold-deep);margin:0 0 var(--space-2);display:none}
 
 /* ---- capa de entrada PDF/.ai/.svg: selector de PPP/página ---- */
 .pdf-controls{display:none;flex-wrap:wrap;gap:var(--space-2) var(--space-3);align-items:center;margin-top:var(--space-2);font-size:var(--caption-size);color:var(--ink-dim)}
@@ -168,6 +181,42 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--region-mark);color:#08130e;font-weight:700;font-size:11px}
 .region-coords{font-family:var(--font-mono)}
 
+/* ---- ayuda plegable ---- */
+.help-section{margin:var(--space-6) 0 var(--space-4)}
+.help-list{display:flex;flex-direction:column;gap:var(--space-2)}
+.help-item{border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--surface);overflow:hidden}
+.help-item summary{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);cursor:pointer;font-size:var(--body-md-size);font-weight:var(--weight-semibold);color:var(--ink);list-style:none}
+.help-item summary::-webkit-details-marker{display:none}
+.help-item summary:hover{background:var(--surface-raised)}
+.help-item summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.help-item .chevron{flex-shrink:0;color:var(--ink-faint);transition:transform .15s}
+.help-item[open] .chevron{transform:rotate(180deg)}
+.help-body{padding:0 var(--space-4) var(--space-4);color:var(--ink-dim);font-size:var(--body-md-size);line-height:1.6}
+.help-body p{margin-bottom:var(--space-2)}
+.help-body p:last-child{margin-bottom:0}
+.help-body ul,.help-body ol{padding-left:1.2em;margin:var(--space-2) 0}
+.help-body li{margin-bottom:4px}
+.help-body strong{color:var(--ink)}
+
+/* ---- modal genérico (historial de versiones) ---- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,34,51,.45);display:none;align-items:center;justify-content:center;z-index:1000;padding:var(--space-4)}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--elevation-2);max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-bottom:0.5px solid var(--border)}
+.modal-header h3{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);color:var(--ink)}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:22px;line-height:1;padding:4px 8px;border-radius:var(--radius-sm)}
+.modal-close:hover{color:var(--ink);background:var(--surface-raised)}
+.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.modal-body{overflow-y:auto;padding:var(--space-4) var(--space-5)}
+.version-entry{padding:var(--space-3) 0;border-bottom:0.5px solid var(--border)}
+.version-entry:first-child{padding-top:0}
+.version-entry:last-child{border-bottom:none;padding-bottom:0}
+.version-entry .v-head{display:flex;align-items:baseline;gap:var(--space-2);margin-bottom:var(--space-1)}
+.version-entry .v-num{font-family:var(--font-mono);font-weight:700;color:var(--primary-deep)}
+.version-entry .v-date{font-size:var(--caption-size);color:var(--ink-faint)}
+.version-entry ul{padding-left:1.1em;color:var(--ink-dim);font-size:var(--caption-size);line-height:1.6}
+.version-entry li{margin-bottom:2px}
+
 /* ---- avisos de beta / contacto ---- */
 .feedback-block{border-top:0.5px solid var(--border);margin-top:var(--space-4);padding-top:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim);line-height:1.6}
 .feedback-block a{color:var(--primary);text-decoration:none}
@@ -189,7 +238,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 <div class="app-header">
   <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
   <span class="status-badge">Beta</span>
-  <span class="app-version" id="appVersionTag"></span>
+  <button type="button" class="app-version" id="appVersionTag" aria-haspopup="dialog"></button>
   <div class="app-sub">Comparación píxel a píxel  //  PDF · AI · SVG · JPG · PNG</div>
   <div class="app-dev-notice">Herramienta en desarrollo activo. Algunas funciones pueden cambiar.</div>
 </div>
@@ -256,33 +305,37 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 
 <div id="alignSection" style="display:none">
-  <div class="title">Alinear imágenes (opcional) — haz clic en un mismo punto de referencia en cada imagen. Rueda: zoom · Arrastrar: desplazar · Doble clic: restablecer vista</div>
+  <div class="title">Alinear imágenes (opcional) — marca hasta 2 puntos de referencia por imagen (mismo punto físico del artwork en ambas). Rueda: zoom antes de marcar · Arrastrar el lienzo: desplazar · Doble clic: restablecer vista</div>
+  <div class="align-guide" id="alignGuideText">Marca el punto 1 en la imagen A.</div>
   <div class="grid2">
     <div>
       <div class="align-canvas-wrap" id="alignWrapA">
         <canvas id="alignCanvasA" class="align-canvas"></canvas>
-        <div class="ref-marker" id="refMarkerA"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
+        <div class="ref-markers" id="refMarkersA"></div>
         <div class="hover-marker" id="hoverMarkerA"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
       </div>
-      <div class="align-info" id="refAInfo">Sin punto marcado</div>
+      <div class="align-info" id="refAInfo">Sin puntos marcados</div>
     </div>
     <div>
       <div class="align-canvas-wrap" id="alignWrapB">
         <canvas id="alignCanvasB" class="align-canvas"></canvas>
-        <div class="ref-marker" id="refMarkerB"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
+        <div class="ref-markers" id="refMarkersB"></div>
         <div class="hover-marker" id="hoverMarkerB"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
       </div>
-      <div class="align-info" id="refBInfo">Sin punto marcado</div>
+      <div class="align-info" id="refBInfo">Sin puntos marcados</div>
     </div>
   </div>
+  <div class="align-transform-summary" id="alignTransformSummary"></div>
+  <div class="align-transform-warn" id="alignTransformWarn"></div>
   <button class="action" id="btnResetRef"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 16v-4h4"/></svg> Restablecer alineación</button>
 </div>
 
 <div class="thresh-row">
   <label>Umbral ΔE:</label>
-  <input type="range" id="thresh" min="1" max="30" value="5" step="1">
-  <span id="threshVal">5</span>
+  <input type="range" id="thresh" min="1" max="30" value="1" step="1">
+  <span id="threshVal">1</span>
 </div>
+<div class="hint" id="threshSuggestNote"></div>
 
 <div class="btn-row">
   <button class="action primary" id="btnCompare" disabled>
@@ -298,6 +351,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="stat"><div class="val" id="sDiff">—</div><div class="lbl">píxeles diferentes</div></div>
   <div class="stat"><div class="val" id="sPct">—</div><div class="lbl">% área diferente</div></div>
   <div class="stat"><div class="val" id="sDEmax">—</div><div class="lbl">ΔE máximo</div></div>
+  <div class="stat"><div class="val" id="sAreaCompared">—</div><div class="lbl">área comparada</div></div>
 </div>
 
 <div id="resultsArea" style="display:none">
@@ -313,10 +367,11 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="legend">
       <div class="legend-item"><div class="legend-dot dot-high"></div>ΔE alto (>15)</div>
       <div class="legend-item"><div class="legend-dot dot-mid"></div>ΔE medio (5–15)</div>
-      <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">5</span>–5)</div>
+      <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">1</span>–5)</div>
     </div>
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="mainCanvas"></canvas>
+      <canvas id="maskCanvas"></canvas>
       <canvas id="regionsCanvas"></canvas>
     </div>
     <div class="hint">Mueve el cursor para ver valores ΔE · Rueda del ratón: zoom · Arrastrar: desplazar · Doble clic: restablecer</div>
@@ -372,16 +427,97 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="zoom-info" id="alignZoomInfo"></div>
 </div>
 
+<section class="help-section" aria-label="Ayuda">
+  <div class="field-label">Ayuda</div>
+  <div class="help-list">
+    <details class="help-item">
+      <summary>¿Qué hace esta herramienta?<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <p>Compara dos versiones de un mismo archivo — por ejemplo, el diseño aprobado y una revisión del cliente — y señala automáticamente todo lo que ha cambiado entre ambas, píxel a píxel. Está pensada para revisar cambios entre revisiones de cliente sin tener que repasarlas a ojo.</p>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>Cómo se usa<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <ol>
+          <li>Carga la Imagen A (original) y la Imagen B (modificado).</li>
+          <li>Si hace falta, marca los puntos de alineación antes de comparar.</li>
+          <li>Pulsa «Comparar».</li>
+          <li>Revisa las zonas marcadas en la lista de zonas diferentes.</li>
+        </ol>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>¿Qué es el umbral ΔE y cómo ajustarlo?<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <p>El ΔE (Delta E) mide la diferencia de color entre dos puntos: cuanto más alto, más distinto es el color. El umbral determina a partir de qué ΔE se considera que un píxel ha cambiado.</p>
+        <p>Al comparar dos archivos digitales, cualquier diferencia es un cambio real: no hay proceso de impresión que introduzca variación. Por eso la recomendación es trabajar con el umbral en <strong>1</strong>, para que no se te escape nada — incluidos los cambios de tinta que a simple vista no se aprecian.</p>
+        <p>El umbral existe para filtrar el ruido que introducen los propios archivos, no para descartar cambios pequeños:</p>
+        <ul>
+          <li><strong>Umbral 1</strong> — Recomendado. PNG, PDF y SVG, sin alineación aplicada. Detecta todo.</li>
+          <li><strong>Umbral 2-3</strong> — Con JPG, cuya compresión genera diferencias falsas, o cuando hay transformación de alineación activa y el remuestreo produce ruido en los bordes.</li>
+          <li><strong>Umbral 5 o más</strong> — Solo si quieres localizar únicamente los cambios grandes e ignorar los matices.</li>
+        </ul>
+        <p>Subir el umbral <strong>oculta diferencias reales</strong>. Ante la duda, es mejor bajarlo y revisar más zonas.</p>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>Alineación: cuándo usarla<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <p>Si las dos versiones tienen distinto tamaño, resolución o están giradas, marca los puntos de referencia antes de comparar — si no, la herramienta marcará la imagen entera como diferente.</p>
+        <p>Marca el mismo punto físico del artwork en A y en B. Conviene poner los dos puntos lo más separados posible entre sí, para que el cálculo de escala y giro sea más preciso.</p>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>Formatos admitidos<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <p>PDF, .ai, SVG, JPG y PNG.</p>
+        <p>En archivos PDF puedes elegir la resolución de análisis (PPP), y la herramienta detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>Limitaciones<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <ul>
+          <li>Compara la apariencia final compuesta, no separaciones ni canales individuales de tinta.</li>
+          <li>No compara tintas planas, sobreimpresión ni barnices por separado.</li>
+          <li>No sustituye a una revisión profesional de preimpresión; es una ayuda para localizar cambios rápido.</li>
+        </ul>
+      </div>
+    </details>
+    <details class="help-item">
+      <summary>Privacidad<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+      <div class="help-body">
+        <p>Todo el procesamiento ocurre en tu navegador. Los archivos no se suben a ningún servidor.</p>
+        <p>Puedes comprobarlo desconectando la conexión a internet: la herramienta sigue funcionando igual.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
 <div class="app-footer">
   Desarrollado por <a href="https://diegomondelo.com" target="_blank" rel="noopener">Diego Mondelo</a>
   <span class="footer-sep">//</span>
   Tus archivos no salen de tu equipo: todo el procesamiento ocurre en el navegador.
   <span class="footer-sep">//</span>
   <a href="#" id="footerFeedbackLink">¿Dudas o sugerencias? Escríbeme</a>
+  <span class="footer-sep">//</span>
+  <a href="#" id="footerVersionLink" aria-haspopup="dialog">Historial de versiones</a>
+</div>
+
+<div class="modal-backdrop" id="versionModalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
+    <div class="modal-header">
+      <h3 id="versionModalTitle">Historial de versiones</h3>
+      <button type="button" class="modal-close" id="versionModalClose" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="versionModalBody"></div>
+  </div>
 </div>
 </div>
 
 <script src="./canvas-view.js"></script>
+<script src="./similarity.js"></script>
 <script src="./align.js"></script>
 <script src="./pdf-source.js"></script>
 <script src="./text-analysis.js"></script>

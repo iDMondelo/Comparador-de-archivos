@@ -7,6 +7,8 @@
 
 const mainCanvas=document.getElementById('mainCanvas');
 const ctx=mainCanvas.getContext('2d');
+const maskCanvas=document.getElementById('maskCanvas');
+const mctx=maskCanvas.getContext('2d');
 const regionsCanvas=document.getElementById('regionsCanvas');
 const rctx=regionsCanvas.getContext('2d');
 const canvasWrap=document.getElementById('canvasWrap');
@@ -39,7 +41,7 @@ function applyCanvasTransform(){
   const base=fitScale();
   const w=(cW*base*st.zoom)+'px',h=(cH*base*st.zoom)+'px';
   const t=`translate(${st.panX}px, ${st.panY}px)`;
-  [mainCanvas,regionsCanvas].forEach(c=>{
+  [mainCanvas,maskCanvas,regionsCanvas].forEach(c=>{
     c.style.width=w;c.style.height=h;c.style.transform=t;
   });
   if(typeof drawRegionsOverlay==='function')drawRegionsOverlay();

@@ -4,7 +4,51 @@
 // contacto con el motor es enviarle ImageData y recibir sus resultados.
 // ============================================================================
 
-const APP_VERSION='0.4';
+// Historial de versiones mostrado en el modal (cabecera "vX" / pie / modal).
+// Para publicar una versión nueva: añade un objeto al PRINCIPIO de este
+// array (más reciente primero). `version` es el número que se muestra como
+// "vX" — no lleva el prefijo "v". `date` en formato AAAA-MM-DD. `changes` es
+// la lista de viñetas del changelog de esa versión.
+const VERSION_HISTORY=[
+  {version:'8',date:'2026-07-30',changes:[
+    'Añade ayuda plegable en la pantalla inicial (qué hace la herramienta, cómo usarla, umbral ΔE, alineación, formatos, limitaciones, privacidad).',
+    'Añade este historial de versiones, accesible desde la cabecera y el pie.',
+    'Cambia el umbral ΔE por defecto de 5 a 1 y lo sugiere automáticamente en 2 ante JPG o alineación con transformación de escala/giro.'
+  ]},
+  {version:'7',date:'2026-07-30',changes:[
+    'Alineación por hasta 2 puntos de referencia por imagen: además de trasladar, corrige escala y giro, y marca las zonas sin contenido comparable de B.'
+  ]},
+  {version:'6a',date:'2026-07-30',changes:[
+    'Ajustes de textos: aviso de beta y desarrollo activo, número de versión en cabecera, enlace de contacto por correo.'
+  ]},
+  {version:'6',date:'2026-07-30',changes:[
+    'Publicación en GitHub Pages.'
+  ]},
+  {version:'5',date:'2026-07-30',changes:[
+    'Añade licencia y documentación del proyecto.'
+  ]},
+  {version:'4',date:'2026-07-30',changes:[
+    'Recuadros de zonas diferentes más precisos y legibles.',
+    'Mejoras en la exportación a PNG.'
+  ]},
+  {version:'3',date:'2026-07-29',changes:[
+    'Ajustes tras la incorporación de PDF.'
+  ]},
+  {version:'2',date:'2026-07-29',changes:[
+    'Motor ΔE2000 en segundo plano (Web Worker).',
+    'Soporte de PDF, .ai y SVG, con selección de PPP.',
+    'Alineación manual por punto de referencia.',
+    'Panel de zonas diferentes.',
+    'Análisis de texto y comparación por palabras (OCR).'
+  ]},
+  {version:'1a',date:'2026-07-29',changes:[
+    'Renombra el archivo principal para publicación.'
+  ]},
+  {version:'1',date:'2026-07-29',changes:[
+    'Aplica el sistema de diseño de marca (color, tipografía) sobre la comparación píxel a píxel original.'
+  ]}
+];
+const APP_VERSION=VERSION_HISTORY[0].version;
 
 const fileA=document.getElementById('fileA'),fileB=document.getElementById('fileB');
 const dropA=document.getElementById('dropA'),dropB=document.getElementById('dropB');
@@ -28,7 +72,16 @@ let diffCount=0,deMax=0,pctDiff=0;
 let currentRunId=0;
 let deWorker=null;
 let reportRefA=null,reportRefB=null,reportOffset={dx:0,dy:0};
+let reportTransform=null;
 let lastRegion=null;
+let compareMaskGlobal=null,comparedAreaPixels=0;
+
+// ---- sugerencia adaptativa de umbral ΔE ------------------------------------
+let threshUserOverridden=false; // true en cuanto el usuario toca el slider a mano: deja de autoajustarse el resto de la sesión
+let jpgSuggested=false;         // evita repetir el aviso JPG en el mismo ciclo de carga
+let alignSuggested=false;       // evita repetir el aviso de alineación en cada mousemove de arrastre
+const jpgFlags={A:false,B:false};
+const threshSuggestNote=document.getElementById('threshSuggestNote');
 
 // ---- carga de raster (JPG/PNG) — usada también por pdf-source.js ----------
 
@@ -68,6 +121,8 @@ async function handleFileSelected(file,which){
       if(prevSource.pdfDoc)prevSource.pdfDoc.destroy();
     }
     if(which==='A')sourceA=source;else sourceB=source;
+    jpgFlags[which]=/\.jpe?g$/i.test(file.name)||file.type==='image/jpeg';
+    checkJpgSuggestion();
     nameEl.textContent=file.name;
     zoneEl.classList.add('filled');
     status.textContent='';
@@ -127,12 +182,54 @@ function hideResults(){
 }
 
 threshSlider.oninput=()=>{
+  threshUserOverridden=true;
+  threshSuggestNote.style.display='none';
   threshVal.textContent=threshSlider.value;
   legendThreshVal.textContent=threshSlider.value;
   if(!pixelDEmap)return;
   recolorFromThreshold(parseInt(threshSlider.value));
   if(typeof requestRegionsUpdate==='function')requestRegionsUpdate();
 };
+
+// Sugiere (no impone) un umbral de 2 cuando hay una fuente probable de ruido
+// que el umbral existe para filtrar: compresión JPG o remuestreo de una
+// alineación con transformación de escala/giro. Nunca actúa si el usuario ya
+// ha tocado el slider a mano.
+function suggestThreshold(reason){
+  if(threshUserOverridden)return;
+  if(parseInt(threshSlider.value)<2){
+    threshSlider.value='2';
+    threshVal.textContent='2';
+    legendThreshVal.textContent='2';
+    if(pixelDEmap){
+      recolorFromThreshold(2);
+      if(typeof requestRegionsUpdate==='function')requestRegionsUpdate();
+    }
+  }
+  threshSuggestNote.textContent=reason==='jpg'
+    ?'Umbral ajustado a 2 por compresión JPG'
+    :'Umbral ajustado a 2 por remuestreo de alineación';
+  threshSuggestNote.style.display='block';
+}
+
+function checkJpgSuggestion(){
+  if(!jpgSuggested&&(jpgFlags.A||jpgFlags.B)){
+    jpgSuggested=true;
+    suggestThreshold('jpg');
+  }
+}
+
+// Llamada desde align.js cada vez que cambian los puntos de referencia.
+function checkAlignmentSuggestion(fullSimilarity){
+  if(fullSimilarity){
+    if(!alignSuggested){
+      alignSuggested=true;
+      suggestThreshold('align');
+    }
+  }else{
+    alignSuggested=false;
+  }
+}
 
 btnCompare.onclick=compare;
 document.getElementById('btnReset').onclick=resetAll;
@@ -184,6 +281,20 @@ function updateNotes(region){
   }
 }
 
+// Notas para el modo de 2 puntos (similitud): a diferencia de updateNotes(),
+// aquí siempre hay transformación aplicada, así que el aviso de remuestreo
+// es constante; el resto son los avisos ya calculados por similarity.js
+// (escala/giro fuera de rango, solape bajo).
+function updateSimilarityNotes(sim){
+  const notes=['Transformación aplicada — pueden aparecer diferencias leves en bordes por remuestreo.'];
+  sim.warnings.forEach(w=>notes.push('Aviso: '+w));
+  if(sourceA.dpi&&sourceB.dpi&&sourceA.dpi!==sourceB.dpi){
+    notes.push(`Aviso: Imagen A se renderizó a ${sourceA.dpi}ppp e Imagen B a ${sourceB.dpi}ppp.`);
+  }
+  noteBox.innerHTML=notes.join('<br>');
+  noteBox.style.display='block';
+}
+
 // ---- worker de cálculo ΔE2000 (de-worker.js) --------------------------------
 
 function getWorker(){
@@ -210,12 +321,13 @@ function onWorkerMessage(e){
     heatmapData=new ImageData(new Uint8ClampedArray(msg.heatmapBuf),cW,cH);
     pixelDEmap=new Float32Array(msg.deMapBuf);
     diffCount=msg.diffCount;deMax=msg.deMax;
-    pctDiff=diffCount/(cW*cH)*100;
+    pctDiff=diffCount/comparedAreaPixels*100;
     resetViewState();
 
     document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
     document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
     document.getElementById('sDEmax').textContent=deMax.toFixed(1);
+    document.getElementById('sAreaCompared').textContent=Math.round(comparedAreaPixels/(cW*cH)*100)+'%';
 
     statsRow.style.display='grid';
     resultsArea.style.display='block';
@@ -233,6 +345,19 @@ function onWorkerError(err){
   threshSlider.disabled=false;
 }
 
+// Neutraliza en `bufB` (copia ya independiente del ImageData mostrado) los
+// píxeles fuera de la máscara de cobertura, igualándolos a los de A: el
+// motor calculará ΔE=0 ahí sin que se le tenga que enseñar el concepto de
+// "no comparable". bufB es un ArrayBuffer recién clonado (ver compare()).
+function neutralizeMaskedPixels(bufB,dataA,mask){
+  const view=new Uint8ClampedArray(bufB);
+  for(let i=0;i<mask.length;i++){
+    if(mask[i])continue;
+    const o=i*4;
+    view[o]=dataA[o];view[o+1]=dataA[o+1];view[o+2]=dataA[o+2];view[o+3]=dataA[o+3];
+  }
+}
+
 async function compare(){
   if(!sourceA||!sourceB)return;
   currentRunId++;
@@ -241,29 +366,53 @@ async function compare(){
   btnCompare.disabled=true;
   threshSlider.disabled=true;
 
-  const region=computeAlignedRegion();
-  if(region.w<=0||region.h<=0){
-    status.textContent='Error: no hay superposición entre las imágenes con los puntos de referencia elegidos.';
-    btnCompare.disabled=false;
-    threshSlider.disabled=false;
-    return;
+  const similarityMode=!!(refA&&refB&&refA2&&refB2);
+  compareMaskGlobal=null;
+
+  if(similarityMode){
+    const sim=buildSimilarityAlignedRegion(sourceA,sourceB,refA,refA2,refB,refB2);
+    if(sim.w<=0||sim.h<=0){
+      status.textContent='Error: la imagen A no tiene tamaño válido.';
+      btnCompare.disabled=false;
+      threshSlider.disabled=false;
+      return;
+    }
+    cW=sim.w;cH=sim.h;
+    imgAData=sim.imgAData;imgBData=sim.imgBData;
+    compareMaskGlobal=sim.compareMask;
+    comparedAreaPixels=Math.max(1,Math.round(sim.coverageRatio*cW*cH));
+    reportRefA={...refA};reportRefB={...refB};
+    reportOffset=sim.offset;
+    reportTransform={scale:sim.scale,thetaDeg:sim.thetaDeg,coverageRatio:sim.coverageRatio};
+    lastRegion={w:cW,h:cH,aligned:true,similarity:true};
+    updateSimilarityNotes(sim);
+  }else{
+    const region=computeAlignedRegion();
+    if(region.w<=0||region.h<=0){
+      status.textContent='Error: no hay superposición entre las imágenes con los puntos de referencia elegidos.';
+      btnCompare.disabled=false;
+      threshSlider.disabled=false;
+      return;
+    }
+    cW=region.w;cH=region.h;
+    reportRefA=region.aligned?{...refA}:null;
+    reportRefB=region.aligned?{...refB}:null;
+    reportOffset={dx:region.dx,dy:region.dy};
+    reportTransform=null;
+    lastRegion=region;
+    comparedAreaPixels=cW*cH;
+
+    imgAData=getPixelsRegion(sourceA,region.rectA,cW,cH);
+    imgBData=getPixelsRegion(sourceB,region.rectB,cW,cH);
+
+    updateNotes(region);
   }
-
-  cW=region.w;cH=region.h;
-  reportRefA=region.aligned?{...refA}:null;
-  reportRefB=region.aligned?{...refB}:null;
-  reportOffset={dx:region.dx,dy:region.dy};
-  lastRegion=region;
-
-  imgAData=getPixelsRegion(sourceA,region.rectA,cW,cH);
-  imgBData=getPixelsRegion(sourceB,region.rectB,cW,cH);
-
-  updateNotes(region);
 
   const thresh=parseInt(threshSlider.value);
   const minSizePct=parseFloat(minSizeInput.value)||0.8;
   const bufA=imgAData.data.buffer.slice(0);
   const bufB=imgBData.data.buffer.slice(0);
+  if(compareMaskGlobal)neutralizeMaskedPixels(bufB,imgAData.data,compareMaskGlobal);
 
   status.textContent='Analizando… 0%';
   const worker=getWorker();
@@ -290,7 +439,7 @@ function recolorFromThreshold(thresh){
     }
   }
   diffCount=count;
-  pctDiff=count/n*100;
+  pctDiff=count/comparedAreaPixels*100;
   document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
   document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
   if(currentTab==='overlay')renderTab('overlay');
@@ -298,12 +447,14 @@ function recolorFromThreshold(thresh){
 
 function renderTab(tab){
   mainCanvas.width=cW;mainCanvas.height=cH;
+  maskCanvas.width=cW;maskCanvas.height=cH;
   regionsCanvas.width=cW;regionsCanvas.height=cH;
   if(tab==='overlay'){ctx.putImageData(overlayData,0,0);}
   else if(tab==='imgA'){ctx.putImageData(imgAData,0,0);}
   else if(tab==='imgB'){ctx.putImageData(imgBData,0,0);}
   else if(tab==='heatmap'){ctx.putImageData(heatmapData,0,0);}
   applyCanvasTransform();
+  if(typeof drawMaskOverlay==='function')drawMaskOverlay();
   if(typeof drawRegionsOverlay==='function')drawRegionsOverlay();
 }
 
@@ -335,8 +486,11 @@ function resetAll(){
   overlayData=null;heatmapData=null;pixelDEmap=null;
   cW=0;cH=0;
   diffCount=0;deMax=0;pctDiff=0;
-  reportRefA=null;reportRefB=null;reportOffset={dx:0,dy:0};
+  reportRefA=null;reportRefB=null;reportOffset={dx:0,dy:0};reportTransform=null;
   lastRegion=null;
+  compareMaskGlobal=null;comparedAreaPixels=0;
+  jpgFlags.A=false;jpgFlags.B=false;jpgSuggested=false;alignSuggested=false;
+  threshSuggestNote.style.display='none';
 
   fileA.value='';fileB.value='';
   nameA.textContent='ningún archivo';nameB.textContent='ningún archivo';
@@ -358,6 +512,7 @@ function resetAll(){
   resetViewState();
   alignSection.style.display='none';
   ctx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+  mctx.clearRect(0,0,maskCanvas.width,maskCanvas.height);
   rctx.clearRect(0,0,regionsCanvas.width,regionsCanvas.height);
 }
 
@@ -380,8 +535,16 @@ document.getElementById('btnExportReport').onclick=()=>{
     timestamp:new Date().toISOString(),
     imagenA:{nombre:nameA.textContent,ancho:sourceA.naturalWidth,alto:sourceA.naturalHeight,tipo:sourceA.sourceType,ppp:sourceA.dpi||null,textoModo:sourceA.textMode||null},
     imagenB:{nombre:nameB.textContent,ancho:sourceB.naturalWidth,alto:sourceB.naturalHeight,tipo:sourceB.sourceType,ppp:sourceB.dpi||null,textoModo:sourceB.textMode||null},
-    areaComparada:{ancho:cW,alto:cH},
-    puntosReferencia:(reportRefA&&reportRefB)?{A:reportRefA,B:reportRefB,offset:reportOffset}:null,
+    areaComparada:{ancho:cW,alto:cH,porcentaje:Number((comparedAreaPixels/(cW*cH)*100).toFixed(1))},
+    puntosReferencia:(reportRefA&&reportRefB)?{
+      A:reportTransform?{p1:reportRefA,p2:refA2}:reportRefA,
+      B:reportTransform?{p1:reportRefB,p2:refB2}:reportRefB,
+      offset:reportOffset
+    }:null,
+    transformacion:reportTransform?{
+      escala:Number(reportTransform.scale.toFixed(4)),
+      giroGrados:Number(reportTransform.thetaDeg.toFixed(2))
+    }:null,
     umbralDE:parseInt(threshSlider.value),
     pixelesDiferentes:diffCount,
     porcentajeDiferente:Number(pctDiff.toFixed(2)),
@@ -407,3 +570,47 @@ function initMetaUI(){
   document.getElementById('footerFeedbackLink').href=mailto;
 }
 initMetaUI();
+
+// ---- historial de versiones (modal) ----------------------------------------
+
+const versionModalBackdrop=document.getElementById('versionModalBackdrop');
+const versionModalBody=document.getElementById('versionModalBody');
+const versionModalClose=document.getElementById('versionModalClose');
+let versionModalTrigger=null;
+let versionModalRendered=false;
+
+function renderVersionHistory(){
+  if(versionModalRendered)return;
+  versionModalBody.innerHTML=VERSION_HISTORY.map(v=>`
+    <div class="version-entry">
+      <div class="v-head"><span class="v-num">v${v.version}</span><span class="v-date">${v.date}</span></div>
+      <ul>${v.changes.map(c=>`<li>${c}</li>`).join('')}</ul>
+    </div>
+  `).join('');
+  versionModalRendered=true;
+}
+
+function openVersionModal(trigger){
+  renderVersionHistory();
+  versionModalTrigger=trigger||null;
+  versionModalBackdrop.classList.add('open');
+  versionModalClose.focus();
+  document.addEventListener('keydown',onVersionModalKeydown);
+}
+
+function closeVersionModal(){
+  versionModalBackdrop.classList.remove('open');
+  document.removeEventListener('keydown',onVersionModalKeydown);
+  if(versionModalTrigger)versionModalTrigger.focus();
+}
+
+function onVersionModalKeydown(e){
+  if(e.key==='Escape')closeVersionModal();
+}
+
+document.getElementById('appVersionTag').onclick=function(){openVersionModal(this);};
+document.getElementById('footerVersionLink').onclick=function(e){e.preventDefault();openVersionModal(this);};
+versionModalClose.onclick=closeVersionModal;
+versionModalBackdrop.addEventListener('click',e=>{
+  if(e.target===versionModalBackdrop)closeVersionModal();
+});

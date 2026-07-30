@@ -1,9 +1,8 @@
 // ============================================================================
-// align.js — alineación manual por punto de referencia. Capa de entrada,
-// no forma parte del motor de comparación. Extraído del index.html original
-// sin cambios de lógica, salvo adaptarlo a la fuente normalizada
-// {drawable, naturalWidth, naturalHeight} que ahora puede ser una imagen
-// rasterizada o un canvas renderizado desde PDF/SVG (ver pdf-source.js).
+// align.js — alineación manual por puntos de referencia. Capa de entrada, no
+// forma parte del motor de comparación. Soporta hasta 2 puntos por imagen:
+// 0/1 punto mantiene el comportamiento original (solo traslación); con 2
+// puntos por lado se calcula además escala y giro (ver similarity.js).
 // ============================================================================
 
 const alignSection=document.getElementById('alignSection');
@@ -11,18 +10,30 @@ const alignCanvasA=document.getElementById('alignCanvasA'),alignCanvasB=document
 const refAInfo=document.getElementById('refAInfo'),refBInfo=document.getElementById('refBInfo');
 const alignWrapEls={A:document.getElementById('alignWrapA'),B:document.getElementById('alignWrapB')};
 const alignCanvasEls={A:alignCanvasA,B:alignCanvasB};
-const refMarkerEls={A:document.getElementById('refMarkerA'),B:document.getElementById('refMarkerB')};
+const refMarkersEls={A:document.getElementById('refMarkersA'),B:document.getElementById('refMarkersB')};
 const hoverMarkerEls={A:document.getElementById('hoverMarkerA'),B:document.getElementById('hoverMarkerB')};
 const alignZoomBox=document.getElementById('alignZoomBox');
 const alignZoomCanvas=document.getElementById('alignZoomCanvas');
 const azctx=alignZoomCanvas.getContext('2d');
 const alignZoomInfo=document.getElementById('alignZoomInfo');
+const alignGuideEl=document.getElementById('alignGuideText');
+const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
+const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const ALIGN_ZOOM_WIN=28;
+const ALIGN_ZOOM_MAX=40;
+const REF_HIT_RADIUS=14; // px de pantalla, para detectar arrastre sobre una marca ya colocada
 
-let refA=null,refB=null;
+// pointsA/pointsB: hasta 2 puntos {x,y} en coordenadas naturales, con huecos
+// `null` cuando un punto se borra (para no perder la numeración 1/2).
+let pointsA=[null,null],pointsB=[null,null];
+// Alias que consume app.js: refA/refB (punto 1, modo 0/1 punto sin tocar) y
+// refA2/refB2 (punto 2, solo presentes en modo similitud completa).
+let refA=null,refB=null,refA2=null,refB2=null;
+
+const markerEls={A:[null,null],B:[null,null]};
 const alignViewState={A:{zoom:1,panX:0,panY:0},B:{zoom:1,panX:0,panY:0}};
 let alignDrag=null;
-const ALIGN_ZOOM_MAX=40;
+let pointDrag=null;
 
 function alignFitScale(which){
   const canvas=alignCanvasEls[which];
@@ -52,17 +63,47 @@ function applyAlignTransform(which){
   canvas.style.width=(canvas.width*base*st.zoom)+'px';
   canvas.style.height=(canvas.height*base*st.zoom)+'px';
   canvas.style.transform=`translate(${st.panX}px, ${st.panY}px)`;
-  positionRefMarker(which);
+  positionAllMarkers(which);
 }
 
-function positionRefMarker(which){
-  const ref=which==='A'?refA:refB;
-  const marker=refMarkerEls[which];
-  if(!ref){marker.style.display='none';return;}
+// ---- marcas de puntos: creación/posición/borrado --------------------------
+
+function createMarkerEl(which,idx){
+  const el=document.createElement('div');
+  el.className='ref-marker';
+  el.innerHTML=`<div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div><div class="rm-badge">${idx+1}</div><button type="button" class="rm-delete" aria-label="Borrar punto ${idx+1}">&times;</button>`;
+  const btn=el.querySelector('.rm-delete');
+  btn.addEventListener('mousedown',e=>e.stopPropagation());
+  btn.addEventListener('click',e=>{e.stopPropagation();deletePoint(which,idx);});
+  return el;
+}
+
+function ensureMarkerEl(which,idx){
+  if(markerEls[which][idx])return markerEls[which][idx];
+  const el=createMarkerEl(which,idx);
+  refMarkersEls[which].appendChild(el);
+  markerEls[which][idx]=el;
+  return el;
+}
+
+function removeMarkerEl(which,idx){
+  const el=markerEls[which][idx];
+  if(el){el.remove();markerEls[which][idx]=null;}
+}
+
+function positionMarkerEl(which,idx){
+  const pts=which==='A'?pointsA:pointsB;
+  const p=pts[idx];
+  if(!p){removeMarkerEl(which,idx);return;}
+  const el=ensureMarkerEl(which,idx);
   const o=alignOrigin(which);
-  marker.style.left=(o.left+ref.x*o.scale)+'px';
-  marker.style.top=(o.top+ref.y*o.scale)+'px';
-  marker.style.display='block';
+  el.style.left=(o.left+p.x*o.scale)+'px';
+  el.style.top=(o.top+p.y*o.scale)+'px';
+}
+
+function positionAllMarkers(which){
+  positionMarkerEl(which,0);
+  positionMarkerEl(which,1);
 }
 
 // `source` es el objeto normalizado {drawable, naturalWidth, naturalHeight}
@@ -90,6 +131,14 @@ function alignEventToNatural(e,canvas){
   return{x:Math.round((e.clientX-rect.left)*scaleX),y:Math.round((e.clientY-rect.top)*scaleY)};
 }
 
+function clampToSource(n,source){
+  if(!source)return n;
+  return{
+    x:Math.max(0,Math.min(n.x,source.naturalWidth-1)),
+    y:Math.max(0,Math.min(n.y,source.naturalHeight-1))
+  };
+}
+
 function positionHoverMarker(which,clientX,clientY){
   const r=alignWrapEls[which].getBoundingClientRect();
   const marker=hoverMarkerEls[which];
@@ -99,6 +148,105 @@ function positionHoverMarker(which,clientX,clientY){
 }
 function hideHoverMarker(which){
   hoverMarkerEls[which].style.display='none';
+}
+
+// ---- texto guía, info de puntos y resumen de transformación ---------------
+
+function formatPointsInfo(pts){
+  const parts=[];
+  if(pts[0])parts.push(`Punto 1: (${pts[0].x}, ${pts[0].y})`);
+  if(pts[1])parts.push(`Punto 2: (${pts[1].x}, ${pts[1].y})`);
+  return parts.length?parts.join(' · '):'Sin puntos marcados';
+}
+
+function updateRefInfo(which){
+  const el=which==='A'?refAInfo:refBInfo;
+  const pts=which==='A'?pointsA:pointsB;
+  el.textContent=formatPointsInfo(pts);
+}
+
+function updateAlignGuide(){
+  let msg;
+  if(!pointsA[0])msg='Marca el punto 1 en la imagen A.';
+  else if(!pointsB[0])msg='Marca el mismo punto físico (punto 1) en la imagen B.';
+  else if(!pointsA[1])msg='Marca un segundo punto en la imagen A, distinto del primero (otra cruz de registro, esquina o vértice) — opcional, corrige también escala y giro.';
+  else if(!pointsB[1])msg='Marca el mismo segundo punto físico en la imagen B.';
+  else msg='4 puntos marcados. Puedes arrastrar cualquier marca para ajustarla o borrarla con el botón ×.';
+  alignGuideEl.textContent=msg;
+}
+
+function formatEs(n,decimals){
+  return n.toFixed(decimals).replace('.',',');
+}
+
+function updateTransformSummary(){
+  if(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]){
+    const t=computeSimilarityTransform(pointsA[0],pointsA[1],pointsB[0],pointsB[1]);
+    alignTransformSummaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${t.offset.dx}, ${t.offset.dy} px`;
+    alignTransformSummaryEl.style.display='block';
+    const warns=transformWarnings(t.scale,t.thetaDeg,null);
+    if(warns.length){
+      alignTransformWarnEl.textContent='Aviso: '+warns.join(' ');
+      alignTransformWarnEl.style.display='block';
+    }else{
+      alignTransformWarnEl.style.display='none';
+    }
+  }else{
+    alignTransformSummaryEl.style.display='none';
+    alignTransformWarnEl.style.display='none';
+  }
+}
+
+function syncRefGlobals(){
+  refA=pointsA[0]||null;
+  refB=pointsB[0]||null;
+  refA2=pointsA[1]||null;
+  refB2=pointsB[1]||null;
+}
+
+function refreshAfterPointsChange(which){
+  updateRefInfo(which);
+  syncRefGlobals();
+  updateAlignGuide();
+  updateTransformSummary();
+  if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]));
+}
+
+function placeNextPoint(which,n){
+  const pts=which==='A'?pointsA:pointsB;
+  const idx=pts.findIndex(p=>!p);
+  if(idx===-1)return; // los 2 puntos de este lado ya están colocados
+  pts[idx]=n;
+  positionMarkerEl(which,idx);
+  refreshAfterPointsChange(which);
+}
+
+function deletePoint(which,idx){
+  const pts=which==='A'?pointsA:pointsB;
+  pts[idx]=null;
+  removeMarkerEl(which,idx);
+  refreshAfterPointsChange(which);
+}
+
+// ---- interacción: clic para marcar, arrastrar marca, panear, zoom ---------
+
+function pointScreenPos(which,idx){
+  const pts=which==='A'?pointsA:pointsB;
+  const p=pts[idx];
+  if(!p)return null;
+  const o=alignOrigin(which);
+  const wrapRect=alignWrapEls[which].getBoundingClientRect();
+  return{x:wrapRect.left+o.left+p.x*o.scale,y:wrapRect.top+o.top+p.y*o.scale};
+}
+
+function hitTestMarker(which,clientX,clientY){
+  const pts=which==='A'?pointsA:pointsB;
+  for(let idx=0;idx<pts.length;idx++){
+    if(!pts[idx])continue;
+    const s=pointScreenPos(which,idx);
+    if(Math.hypot(clientX-s.x,clientY-s.y)<=REF_HIT_RADIUS)return idx;
+  }
+  return -1;
 }
 
 function setupAlignInteraction(which){
@@ -127,6 +275,12 @@ function setupAlignInteraction(which){
 
   wrap.addEventListener('mousedown',e=>{
     if(!canvas.width||!canvas.height)return;
+    const hitIdx=hitTestMarker(which,e.clientX,e.clientY);
+    if(hitIdx>=0){
+      pointDrag={which,idx:hitIdx};
+      e.preventDefault();
+      return;
+    }
     alignDrag={which,startX:e.clientX,startY:e.clientY,panX:alignViewState[which].panX,panY:alignViewState[which].panY,moved:false};
   });
 
@@ -140,6 +294,27 @@ setupAlignInteraction('A');
 setupAlignInteraction('B');
 
 window.addEventListener('mousemove',e=>{
+  if(pointDrag){
+    const{which,idx}=pointDrag;
+    const canvas=alignCanvasEls[which];
+    const source=which==='A'?sourceA:sourceB;
+    const n=clampToSource(alignEventToNatural(e,canvas),source);
+    const pts=which==='A'?pointsA:pointsB;
+    pts[idx]=n;
+    positionMarkerEl(which,idx);
+    refreshAfterPointsChange(which);
+    if(source){
+      positionHoverMarker(which,e.clientX,e.clientY);
+      alignZoomBox.style.display='block';
+      let lx=e.clientX+18,ly=e.clientY-90;
+      if(lx+180>window.innerWidth)lx=e.clientX-190;
+      if(ly<0)ly=e.clientY+10;
+      alignZoomBox.style.left=lx+'px';alignZoomBox.style.top=ly+'px';
+      drawAlignLoupe(source,n.x,n.y);
+      alignZoomInfo.textContent=`px: ${n.x}, ${n.y}`;
+    }
+    return;
+  }
   if(!alignDrag)return;
   const dx=e.clientX-alignDrag.startX,dy=e.clientY-alignDrag.startY;
   if(!alignDrag.moved&&Math.hypot(dx,dy)>4){
@@ -155,14 +330,18 @@ window.addEventListener('mousemove',e=>{
   }
 });
 window.addEventListener('mouseup',e=>{
+  if(pointDrag){
+    hideHoverMarker(pointDrag.which);
+    alignZoomBox.style.display='none';
+    pointDrag=null;
+    return;
+  }
   if(!alignDrag)return;
   const{which,moved}=alignDrag;
   if(!moved){
     const canvas=alignCanvasEls[which];
     const n=alignEventToNatural(e,canvas);
-    if(which==='A'){refA=n;refAInfo.textContent=`Punto A: (${n.x}, ${n.y})`;}
-    else{refB=n;refBInfo.textContent=`Punto B: (${n.x}, ${n.y})`;}
-    positionRefMarker(which);
+    placeNextPoint(which,n);
   }else{
     alignCanvasEls[which].style.cursor='';
   }
@@ -194,7 +373,7 @@ function drawAlignLoupe(source,nx,ny){
 function setupAlignLoupe(which,getSource){
   const canvas=alignCanvasEls[which];
   canvas.onmousemove=e=>{
-    if(alignDrag)return;
+    if(alignDrag||pointDrag)return;
     const source=getSource();
     if(!source)return;
     const n=alignEventToNatural(e,canvas);
@@ -207,16 +386,20 @@ function setupAlignLoupe(which,getSource){
     drawAlignLoupe(source,n.x,n.y);
     alignZoomInfo.textContent=`px: ${n.x}, ${n.y}`;
   };
-  canvas.onmouseleave=()=>{alignZoomBox.style.display='none';hideHoverMarker(which);};
+  canvas.onmouseleave=()=>{if(!pointDrag){alignZoomBox.style.display='none';hideHoverMarker(which);}};
 }
 setupAlignLoupe('A',()=>sourceA);
 setupAlignLoupe('B',()=>sourceB);
 
 function resetRefPoints(){
-  refA=null;refB=null;
-  refAInfo.textContent='Sin punto marcado';
-  refBInfo.textContent='Sin punto marcado';
-  positionRefMarker('A');
-  positionRefMarker('B');
+  pointsA=[null,null];pointsB=[null,null];
+  removeMarkerEl('A',0);removeMarkerEl('A',1);
+  removeMarkerEl('B',0);removeMarkerEl('B',1);
+  refAInfo.textContent='Sin puntos marcados';
+  refBInfo.textContent='Sin puntos marcados';
+  syncRefGlobals();
+  updateAlignGuide();
+  updateTransformSummary();
+  if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(false);
 }
 document.getElementById('btnResetRef').onclick=resetRefPoints;
