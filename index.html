@@ -66,7 +66,10 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .app-header{display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-5);flex-wrap:wrap}
 .app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink)}
 .app-title .accent{color:var(--accent-gold-deep);font-weight:var(--weight-bold)}
+.status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:2px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
+.app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint)}
 .app-sub{font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
+.app-dev-notice{font-size:11px;color:var(--ink-faint);margin-top:var(--space-1);flex-basis:100%}
 .field-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2)}
 .drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-4);text-align:center;cursor:pointer;transition:background .15s,border-color .15s;position:relative;background:var(--surface)}
 .drop-zone:hover{background:var(--surface-raised)}
@@ -165,6 +168,15 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--region-mark);color:#08130e;font-weight:700;font-size:11px}
 .region-coords{font-family:var(--font-mono)}
 
+/* ---- avisos de beta / contacto ---- */
+.feedback-block{border-top:0.5px solid var(--border);margin-top:var(--space-4);padding-top:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim);line-height:1.6}
+.feedback-block a{color:var(--primary);text-decoration:none}
+.feedback-block a:hover{text-decoration:underline}
+.app-footer{margin:var(--space-6) 0 var(--space-4);padding-top:var(--space-4);border-top:0.5px solid var(--border);text-align:center;font-size:var(--micro-size);color:var(--ink-faint);line-height:1.8}
+.app-footer a{color:var(--ink-dim);text-decoration:none}
+.app-footer a:hover{color:var(--primary);text-decoration:underline}
+.app-footer .footer-sep{color:var(--ink-mute);margin:0 var(--space-2)}
+
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.001ms!important}
 }
@@ -176,7 +188,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 
 <div class="app-header">
   <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
+  <span class="status-badge">Beta</span>
+  <span class="app-version" id="appVersionTag"></span>
   <div class="app-sub">Comparación píxel a píxel · CIEDE2000 · espacio Lab · PDF, .ai, SVG, JPG, PNG</div>
+  <div class="app-dev-notice">Herramienta en desarrollo activo. Algunas funciones pueden cambiar.</div>
 </div>
 
 <div class="grid2">
@@ -341,6 +356,11 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </div>
     <div id="textDiffPanel"></div>
   </div>
+
+  <div class="feedback-block">
+    ¿Has encontrado un fallo o echas en falta alguna función?<br>
+    Escríbeme y lo tendré en cuenta para la próxima versión — <a href="#" id="resultsFeedbackLink">escríbeme por correo</a>.
+  </div>
 </div>
 
 <div class="zoom-box" id="zoomBox">
@@ -350,6 +370,14 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 <div class="zoom-box" id="alignZoomBox">
   <canvas id="alignZoomCanvas" width="140" height="140"></canvas>
   <div class="zoom-info" id="alignZoomInfo"></div>
+</div>
+
+<div class="app-footer">
+  Desarrollado por <a href="https://diegomondelo.com" target="_blank" rel="noopener">Diego Mondelo</a>
+  <span class="footer-sep">//</span>
+  Tus archivos no salen de tu equipo: todo el procesamiento ocurre en el navegador.
+  <span class="footer-sep">//</span>
+  <a href="#" id="footerFeedbackLink">¿Dudas o sugerencias? Escríbeme</a>
 </div>
 </div>
 

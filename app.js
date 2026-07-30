@@ -4,6 +4,8 @@
 // contacto con el motor es enviarle ImageData y recibir sus resultados.
 // ============================================================================
 
+const APP_VERSION='0.4';
+
 const fileA=document.getElementById('fileA'),fileB=document.getElementById('fileB');
 const dropA=document.getElementById('dropA'),dropB=document.getElementById('dropB');
 const nameA=document.getElementById('nameA'),nameB=document.getElementById('nameB');
@@ -394,3 +396,14 @@ document.getElementById('btnExportReport').onclick=()=>{
   a.click();
   URL.revokeObjectURL(url);
 };
+
+// ---- avisos de beta / versión / contacto -----------------------------------
+
+function initMetaUI(){
+  document.getElementById('appVersionTag').textContent='v'+APP_VERSION;
+  const subject=encodeURIComponent(`ComparadorΔE v${APP_VERSION} - Sugerencia`);
+  const mailto=`mailto:contacto@diegomondelo.com?subject=${subject}`;
+  document.getElementById('resultsFeedbackLink').href=mailto;
+  document.getElementById('footerFeedbackLink').href=mailto;
+}
+initMetaUI();
