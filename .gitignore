@@ -5,3 +5,7 @@
 *.pem
 node_modules/
 .claude/settings.local.json
+_site/
+.jekyll-cache/
+.bundle/
+vendor/
