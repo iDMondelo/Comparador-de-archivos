@@ -135,19 +135,19 @@ self.onmessage=function(e){
       overlayBuf:overlay.buffer,heatmapBuf:heat.buffer,deMapBuf:deMap.buffer
     },[overlay.buffer,heat.buffer,deMap.buffer]);
 
-    const regions=computeRegions(lastDeMap,lastW,lastH,threshold,msg.minSize,msg.mergeDist);
-    self.postMessage({type:'regionsResult',runId,regions});
+    const result=computeRegions(lastDeMap,lastW,lastH,threshold,msg.minSizePct,msg.mergeDistPct);
+    self.postMessage({type:'regionsResult',runId,regions:result.regions,stats:result.stats});
     return;
   }
 
   if(msg.type==='regions'){
-    const{runId,threshold,minSize,mergeDist}=msg;
+    const{runId,threshold,minSizePct,mergeDistPct}=msg;
     if(runId!==lastRunId||!lastDeMap){
       // La comparación de referencia ya no es la vigente: se ignora.
       return;
     }
-    const regions=computeRegions(lastDeMap,lastW,lastH,threshold,minSize,mergeDist);
-    self.postMessage({type:'regionsResult',runId,regions});
+    const result=computeRegions(lastDeMap,lastW,lastH,threshold,minSizePct,mergeDistPct);
+    self.postMessage({type:'regionsResult',runId,regions:result.regions,stats:result.stats});
   }
 };
 
@@ -156,19 +156,25 @@ self.onmessage=function(e){
 // píxeles que superan el umbral ΔE, descarta el ruido y fusiona cajas
 // cercanas. No modifica ni depende de reescribir el bucle de arriba.
 
-function computeRegions(deMap,w,h,threshold,minSize,mergeDist){
-  minSize=minSize||20;
-  mergeDist=mergeDist||15;
+// minSizePct/mergeDistPct son porcentajes del lado menor del lienzo
+// comparado (no píxeles absolutos), para que un PNG de 1000px y un PDF a
+// 600ppp se comporten de forma equivalente ante el mismo valor de UI.
+const REGION_MINSIZE_PCT_DEFAULT=0.8,REGION_MERGE_PCT_DEFAULT=0.6;
+
+function computeRegions(deMap,w,h,threshold,minSizePct,mergeDistPct){
+  const shortSide=Math.min(w,h);
+  const minSizePx=(minSizePct||REGION_MINSIZE_PCT_DEFAULT)/100*shortSide;
+  const mergeDistPx=(mergeDistPct||REGION_MERGE_PCT_DEFAULT)/100*shortSide;
   const raw=labelConnectedComponents(deMap,w,h,threshold);
-  const kept=discardSmallRegions(raw,minSize);
-  const merged=mergeRegions(kept,mergeDist);
+  const kept=discardSmallRegions(raw,minSizePx);
+  const merged=mergeRegions(kept,mergeDistPx);
   const padded=padRegions(merged,8,w,h);
   // Numeración estable en orden de lectura (arriba-abajo, izq-dcha) para que
   // "Número" y "ΔE máximo" sean dos criterios de orden distintos y útiles
   // en el panel (el panel reordena la lista sin tocar esta numeración).
   padded.sort((a,b)=>a.y-b.y||a.x-b.x);
   padded.forEach((r,idx)=>{r.id=idx+1;});
-  return padded;
+  return{regions:padded,stats:{detected:padded.length,discardedBySize:raw.length-kept.length}};
 }
 
 // Flood-fill con 8-conectividad (para no partir letras en diagonal en dos
@@ -223,11 +229,12 @@ function labelConnectedComponents(deMap,w,h,threshold){
 }
 
 // Filtra por número de píxeles reales de la componente (no por bounding
-// box), interpretando minSize (px "de lado", default 20) como lado
-// equivalente de área — más robusto contra ruido de compresión JPG con
-// bounding box alargado (ringing) que un filtro por ancho/alto.
-function discardSmallRegions(regions,minSize){
-  const minArea=minSize*minSize;
+// box), interpretando minSizePx (ya convertido a píxeles nativos por
+// computeRegions, a partir del % del lado menor) como lado equivalente de
+// área — más robusto contra ruido de compresión JPG con bounding box
+// alargado (ringing) que un filtro por ancho/alto.
+function discardSmallRegions(regions,minSizePx){
+  const minArea=minSizePx*minSizePx;
   return regions.filter(r=>r.pixelCount>=minArea);
 }
 

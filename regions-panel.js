@@ -10,32 +10,62 @@ const regionsListEl=document.getElementById('regionsList');
 const toggleRegionsEl=document.getElementById('toggleRegions');
 const minSizeInput=document.getElementById('regionMinSize');
 const regionsSortBySel=document.getElementById('regionsSortBy');
+const strokeSizeInput=document.getElementById('regionStrokeSize');
+const strokeValEl=document.getElementById('regionStrokeVal');
+const regionStatsEl=document.getElementById('regionStatsInfo');
 
 let currentRegions=[];
 let selectedRegionId=null;
 let regionsVisible=true;
 let regionsDebounceTimer=null;
+let regionStrokePx=parseInt(strokeSizeInput.value)||3;
 
-const REGION_COLOR=getComputedStyle(document.documentElement).getPropertyValue('--sev-low').trim()||'#00cc88';
+const REGION_COLOR=getComputedStyle(document.documentElement).getPropertyValue('--region-mark').trim()||'#FF00FF';
 const REGION_HILITE=getComputedStyle(document.documentElement).getPropertyValue('--marker').trim()||'#22d3e8';
+
+// Grosor de trazo y tamaño de fuente deseados en píxeles de PANTALLA (no de
+// canvas nativo). paintRegions() los convierte a píxeles nativos dividiendo
+// por screenScale, para que el grosor/tamaño aparente no cambie con el zoom.
+const REGION_FONT_SCREEN_PX=18;
+const REGION_BADGE_PAD_SCREEN_PX=5;
+// Ancho de referencia usado solo para la exportación a PNG: el grosor de
+// export escala con la resolución nativa del archivo (cW), nunca con el
+// zoom de pantalla en el momento de exportar.
+const REGION_EXPORT_REF_WIDTH=1000;
+
+function paintRegions(targetCtx,screenScale){
+  const s=Math.max(screenScale,1e-4);
+  const lineW=regionStrokePx/s;
+  const fontPx=REGION_FONT_SCREEN_PX/s;
+  const pad=REGION_BADGE_PAD_SCREEN_PX/s;
+  targetCtx.textAlign='center';
+  targetCtx.textBaseline='middle';
+  currentRegions.forEach(r=>{
+    const hi=r.id===selectedRegionId;
+    targetCtx.font=`bold ${fontPx}px "Montserrat",system-ui,sans-serif`;
+    targetCtx.lineWidth=hi?lineW*1.5:lineW;
+    targetCtx.strokeStyle=hi?REGION_HILITE:REGION_COLOR;
+    targetCtx.strokeRect(r.x+0.5,r.y+0.5,Math.max(r.w-1,1),Math.max(r.h-1,1));
+    const label=String(r.id);
+    const tw=targetCtx.measureText(label).width;
+    const radius=Math.max(fontPx*0.7,tw/2)+pad;
+    targetCtx.beginPath();
+    targetCtx.arc(r.x,r.y,radius,0,Math.PI*2);
+    targetCtx.fillStyle=hi?REGION_HILITE:REGION_COLOR;
+    targetCtx.fill();
+    targetCtx.fillStyle='#08130e';
+    targetCtx.fillText(label,r.x,r.y+fontPx*0.05);
+  });
+  targetCtx.textAlign='left';
+  targetCtx.textBaseline='alphabetic';
+}
 
 function drawRegionsOverlay(){
   if(!regionsCanvas.width||!regionsCanvas.height)return;
   rctx.clearRect(0,0,regionsCanvas.width,regionsCanvas.height);
   if(!regionsVisible)return;
-  rctx.font='bold 14px "Montserrat",system-ui,sans-serif';
-  currentRegions.forEach(r=>{
-    const hi=r.id===selectedRegionId;
-    rctx.lineWidth=hi?3:2;
-    rctx.strokeStyle=hi?REGION_HILITE:REGION_COLOR;
-    rctx.strokeRect(r.x+0.5,r.y+0.5,Math.max(r.w-1,1),Math.max(r.h-1,1));
-    const label=String(r.id);
-    const tw=rctx.measureText(label).width;
-    rctx.fillStyle=hi?REGION_HILITE:REGION_COLOR;
-    rctx.fillRect(r.x,r.y,tw+8,16);
-    rctx.fillStyle='#08130e';
-    rctx.fillText(label,r.x+4,r.y+12);
-  });
+  const st=viewState[currentTab]||viewState.overlay;
+  paintRegions(rctx,fitScale()*st.zoom);
 }
 
 function getSortedRegions(){
@@ -101,6 +131,11 @@ minSizeInput.oninput=()=>{
   clearTimeout(regionsDebounceTimer);
   regionsDebounceTimer=setTimeout(requestRegionsUpdate,200);
 };
+strokeSizeInput.oninput=()=>{
+  regionStrokePx=parseInt(strokeSizeInput.value)||3;
+  strokeValEl.textContent=regionStrokePx;
+  drawRegionsOverlay();
+};
 
 // Pide al worker que recalcule regiones a partir del deMap ya cacheado
 // (sin repetir rgbToLab/deltaE2000), con un pequeño debounce para no
@@ -112,8 +147,7 @@ function requestRegionsUpdate(){
     deWorker.postMessage({
       type:'regions',runId:currentRunId,
       threshold:parseInt(threshSlider.value),
-      minSize:parseInt(minSizeInput.value)||20,
-      mergeDist:15*getWorkingDpi()/300
+      minSizePct:parseFloat(minSizeInput.value)||0.8
     });
   },150);
 }
@@ -123,7 +157,8 @@ function onRegionsResult(msg){
   if(msg.runId!==currentRunId)return;
   currentRegions=msg.regions;
   selectedRegionId=currentRegions.length?currentRegions[0].id:null;
-  regionsPanelWrap.style.display=currentRegions.length?'block':'none';
+  regionsPanelWrap.style.display='block';
+  if(msg.stats)regionStatsEl.textContent=`${msg.stats.detected} zonas detectadas · ${msg.stats.discardedBySize} descartadas por tamaño mínimo`;
   drawRegionsOverlay();
   renderRegionsList();
 }
@@ -131,6 +166,7 @@ function onRegionsResult(msg){
 function clearRegions(){
   currentRegions=[];selectedRegionId=null;
   regionsPanelWrap.style.display='none';
+  regionStatsEl.textContent='';
   if(regionsCanvas.width&&regionsCanvas.height)rctx.clearRect(0,0,regionsCanvas.width,regionsCanvas.height);
   regionsListEl.innerHTML='';
 }
@@ -144,6 +180,6 @@ function exportComposite(){
   out.width=cW;out.height=cH;
   const octx=out.getContext('2d');
   octx.drawImage(mainCanvas,0,0);
-  if(regionsVisible&&currentRegions.length)octx.drawImage(regionsCanvas,0,0);
+  if(regionsVisible&&currentRegions.length)paintRegions(octx,cW/REGION_EXPORT_REF_WIDTH);
   return out;
 }

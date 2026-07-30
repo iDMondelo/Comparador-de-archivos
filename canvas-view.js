@@ -42,6 +42,7 @@ function applyCanvasTransform(){
   [mainCanvas,regionsCanvas].forEach(c=>{
     c.style.width=w;c.style.height=h;c.style.transform=t;
   });
+  if(typeof drawRegionsOverlay==='function')drawRegionsOverlay();
 }
 
 // Centra y amplía el visor sobre un punto en espacio del canvas comparado

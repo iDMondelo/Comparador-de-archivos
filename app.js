@@ -28,10 +28,6 @@ let deWorker=null;
 let reportRefA=null,reportRefB=null,reportOffset={dx:0,dy:0};
 let lastRegion=null;
 
-function getWorkingDpi(){
-  return(sourceA&&sourceA.dpi)||(sourceB&&sourceB.dpi)||300;
-}
-
 // ---- carga de raster (JPG/PNG) — usada también por pdf-source.js ----------
 
 function loadImg(file){
@@ -173,7 +169,7 @@ function updateNotes(region){
     notes.push(`Alineación aplicada con offset dx=${region.dx}, dy=${region.dy}. Área comparada: ${region.w}×${region.h}px.`);
   }
   if(sourceA.dpi&&sourceB.dpi&&sourceA.dpi!==sourceB.dpi){
-    notes.push(`Aviso: Imagen A se renderizó a ${sourceA.dpi}ppp e Imagen B a ${sourceB.dpi}ppp. Usa el mismo PPP en ambas para resultados coherentes (afecta también a la fusión de zonas del Objetivo 4).`);
+    notes.push(`Aviso: Imagen A se renderizó a ${sourceA.dpi}ppp e Imagen B a ${sourceB.dpi}ppp. Usa el mismo PPP en ambas para resultados coherentes.`);
   }
   if(region.w*region.h>0&&region.w*region.h<1600){
     notes.push('Aviso: el área de solapamiento es muy pequeña, las estadísticas pueden no ser representativas.');
@@ -263,14 +259,13 @@ async function compare(){
   updateNotes(region);
 
   const thresh=parseInt(threshSlider.value);
-  const minSize=parseInt(minSizeInput.value)||20;
-  const mergeDist=15*getWorkingDpi()/300;
+  const minSizePct=parseFloat(minSizeInput.value)||0.8;
   const bufA=imgAData.data.buffer.slice(0);
   const bufB=imgBData.data.buffer.slice(0);
 
   status.textContent='Analizando… 0%';
   const worker=getWorker();
-  worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,minSize,mergeDist,bufA,bufB},[bufA,bufB]);
+  worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,minSizePct,bufA,bufB},[bufA,bufB]);
 }
 
 function recolorFromThreshold(thresh){

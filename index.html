@@ -58,6 +58,7 @@
   --sev-high:#ff3b3b;
   --sev-mid:#ffaa00;
   --sev-low:#00cc88;
+  --region-mark:#FF00FF;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
@@ -155,11 +156,13 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .regions-toolbar{display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim)}
 .regions-toolbar label{display:inline-flex;align-items:center;gap:6px}
 .regions-toolbar input[type=number],.regions-toolbar select{border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-ui);font-size:12px;color:var(--ink);background:var(--canvas)}
+.regions-toolbar input[type=range]{accent-color:var(--accent)}
+.regions-toolbar #regionStrokeVal{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink);min-width:14px;text-align:right}
 .regions-list{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .region-row{display:grid;grid-template-columns:24px 1fr 1fr 1fr;gap:var(--space-2);align-items:center;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--caption-size);color:var(--ink-dim)}
 .region-row:hover{background:var(--surface-raised)}
 .region-row.active{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
-.region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--sev-low);color:#08130e;font-weight:700;font-size:11px}
+.region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--region-mark);color:#08130e;font-weight:700;font-size:11px}
 .region-coords{font-family:var(--font-mono)}
 
 @media (prefers-reduced-motion:reduce){
@@ -306,7 +309,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div id="regionsPanel">
       <div class="regions-toolbar">
         <label><input type="checkbox" id="toggleRegions" checked> Mostrar recuadros</label>
-        <label>Tamaño mín. <input type="number" id="regionMinSize" value="20" min="1" style="width:60px"> px</label>
+        <label>Tamaño mín. <input type="number" id="regionMinSize" value="0.8" min="0.1" max="10" step="0.1" style="width:56px"> % del lado menor</label>
+        <span class="hint" id="regionStatsInfo" style="margin:0"></span>
+        <label>Grosor <input type="range" id="regionStrokeSize" min="1" max="6" step="1" value="3" style="width:70px"> <span id="regionStrokeVal">3</span> px</label>
         <label>Ordenar por
           <select id="regionsSortBy">
             <option value="id">Número</option>
