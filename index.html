@@ -126,6 +126,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .note-box{font-size:var(--caption-size);color:var(--ink-dim);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3);margin:var(--space-3) 0;line-height:1.6}
 #alignSection{margin-bottom:var(--space-4)}
 #alignSection .title{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2);line-height:1.5}
+.align-explain{font-size:var(--caption-size);color:var(--ink-dim);margin-bottom:var(--space-2);line-height:1.5}
+.align-controls-hint{font-size:var(--micro-size);color:var(--ink-faint);margin-bottom:var(--space-3)}
+.align-controls-hint .sep{margin:0 var(--space-2);color:var(--ink-mute)}
 .align-guide{font-size:var(--caption-size);font-weight:600;color:var(--primary-deep);margin-bottom:var(--space-2);line-height:1.5}
 .align-canvas-wrap{position:relative;overflow:hidden;height:220px;border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center}
 .align-canvas{display:block;cursor:none}
@@ -304,8 +307,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 
 <div id="alignSection" style="display:none">
-  <div class="title">Alinear imágenes (opcional) — marca hasta 2 puntos de referencia por imagen (mismo punto físico del artwork en ambas). Rueda: zoom antes de marcar · Arrastrar el lienzo: desplazar · Doble clic: restablecer vista</div>
-  <div class="align-guide" id="alignGuideText">Marca el punto 1 en la imagen A.</div>
+  <div class="title">Alineación — opcional</div>
+  <p class="align-explain">Solo necesaria si las dos versiones tienen distinto tamaño, resolución o rotación. Marca hasta 2 puntos de referencia en el mismo punto físico del artwork en ambas imágenes.</p>
+  <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
+  <div class="align-guide" id="alignGuideText">Si vas a alinear: punto 1 en la imagen A</div>
   <div class="grid2">
     <div>
       <div class="align-canvas-wrap" id="alignWrapA">
