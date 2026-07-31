@@ -583,7 +583,7 @@ function renderVersionHistory(){
   if(versionModalRendered)return;
   versionModalBody.innerHTML=VERSION_HISTORY.map(v=>`
     <div class="version-entry">
-      <div class="v-head"><span class="v-num">v${v.version}</span><span class="v-date">${v.date}</span></div>
+      <div class="v-head"><span class="v-num">v${v.version}</span></div>
       <ul>${v.changes.map(c=>`<li>${c}</li>`).join('')}</ul>
     </div>
   `).join('');
