@@ -36,6 +36,9 @@
   --radius-xs:4px;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-pill:9999px;
   --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;
 
+  --logo-h-header:26px;--logo-gap-header:10px;
+  --logo-h-footer:13px;--logo-gap-footer:6px;
+
   --elevation-1:rgba(15,34,51,0.06) 0 1px 2px;
   --elevation-2:rgba(15,34,51,0.08) 0 8px 24px;
 
@@ -63,15 +66,22 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
 .wrap{padding:var(--space-5) var(--space-4);max-width:1040px;margin:0 auto}
-.app-header{display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-5);flex-wrap:wrap}
-.app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink)}
+.app-header{display:flex;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-5)}
+.app-logo-link{display:inline-flex;align-items:center;flex-shrink:0;margin-right:var(--logo-gap-header);margin-top:2px}
+.app-logo-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.app-logo{color:var(--primary);display:block;width:auto}
+.app-logo--header{height:var(--logo-h-header)}
+.app-logo--footer{height:var(--logo-h-footer)}
+.app-header-text{flex:1 1 auto;min-width:0}
+.app-title-row{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap}
+.app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink);flex-shrink:0}
 .app-title .accent{color:var(--accent-gold-deep);font-weight:var(--weight-bold)}
 .status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:2px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
 .app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);background:none;border:none;padding:0;cursor:pointer}
 .app-version:hover{color:var(--primary);text-decoration:underline}
 .app-version:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.app-sub{font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
-.app-dev-notice{font-size:11px;color:var(--ink-faint);margin-top:var(--space-1);flex-basis:100%}
+.app-sub{display:flex;flex-wrap:wrap;column-gap:var(--space-2);row-gap:2px;margin-top:2px;font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
+.app-sub-formats{white-space:nowrap}
 .field-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2)}
 .drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-4);text-align:center;cursor:pointer;transition:background .15s,border-color .15s;position:relative;background:var(--surface)}
 .drop-zone:hover{background:var(--surface-raised)}
@@ -227,6 +237,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .app-footer a{color:var(--ink-dim);text-decoration:none}
 .app-footer a:hover{color:var(--primary);text-decoration:underline}
 .app-footer .footer-sep{color:var(--ink-mute);margin:0 var(--space-2)}
+.footer-dev-link{display:inline-flex;align-items:center;gap:var(--logo-gap-footer);vertical-align:middle}
 
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.001ms!important}
@@ -235,14 +246,37 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </head>
 <body>
 
+<svg style="display:none" aria-hidden="true">
+  <symbol id="logo-dmondelo" viewBox="0 0 585.11 95.44">
+    <path fill="currentColor" d="M77.74,94.13V1.7h17.96l20.71,53.88L137,1.7h17.96v92.43h-18.09v-53.36l-14.42,36.05h-12.32l-14.29-35.79v53.1h-18.09Z"/>
+    <path fill="currentColor" d="M165.58,63.58v-31.46c0-18.88,12.72-32.12,31.07-32.12s31.07,13.24,31.07,32.12v31.46c0,18.75-12.85,31.86-31.07,31.86s-31.07-13.11-31.07-31.86ZM209.63,64.24V31.46c0-10.36-6.16-14.16-12.98-14.16-6.42,0-12.85,3.41-12.85,14.03v32.78c0,10.36,6.03,14.03,12.85,14.03,6.16,0,12.98-3.28,12.98-13.9Z"/>
+    <path fill="currentColor" d="M238.34,94.13V1.7h17.04l27.14,53.75V1.7h18.22v92.43h-17.04l-27.27-53.49v53.49h-18.09Z"/>
+    <path fill="currentColor" d="M313.99,94.13V1.7h30.42c18.35,0,31.07,11.27,31.07,33.82v24.38c0,22.29-12.72,34.22-31.07,34.22h-30.42ZM332.08,76.96h10.23c8.65,0,15.21-3.41,15.21-21.5v-17.96c0-9.96-2.62-18.49-15.21-18.49h-10.23v57.95Z"/>
+    <path fill="currentColor" d="M386.75,94.13V1.7h51.92v17.44h-33.82v20.98h25.04v15.73h-25.04v20.98h33.82v17.31h-51.92Z"/>
+    <path fill="currentColor" d="M448.76,94.13V1.7h18.09v75.12h30.68v17.31h-48.77Z"/>
+    <path fill="currentColor" d="M501.59,63.58v-31.46c0-18.88,12.72-32.12,31.07-32.12s31.07,13.24,31.07,32.12v31.46c0,18.75-12.85,31.86-31.07,31.86s-31.07-13.11-31.07-31.86ZM545.65,64.24V31.46c0-10.36-6.16-14.16-12.98-14.16-6.42,0-12.85,3.41-12.85,14.03v32.78c0,10.36,6.03,14.03,12.85,14.03,6.16,0,12.98-3.28,12.98-13.9Z"/>
+    <rect fill="currentColor" x="567.8" y="76.83" width="17.31" height="17.31"/>
+    <path fill="currentColor" d="M0,94.2V1.77h29.63c18.22,0,30.94,11.67,30.94,34.22v23.86c0,22.42-12.72,34.35-30.94,34.35H0Z"/>
+  </symbol>
+</svg>
+
 <div class="wrap">
 
 <div class="app-header">
-  <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
-  <span class="status-badge">Beta</span>
-  <button type="button" class="app-version" id="appVersionTag" aria-haspopup="dialog"></button>
-  <div class="app-sub">Comparación píxel a píxel  //  PDF · AI · SVG · JPG · PNG</div>
-  <div class="app-dev-notice">Herramienta en desarrollo activo. Algunas funciones pueden cambiar.</div>
+  <a class="app-logo-link" href="https://diegomondelo.com" target="_blank" rel="noopener" aria-label="Diego Mondelo">
+    <svg class="app-logo app-logo--header" viewBox="0 0 585.11 95.44" aria-hidden="true" focusable="false"><use href="#logo-dmondelo"></use></svg>
+  </a>
+  <div class="app-header-text">
+    <div class="app-title-row">
+      <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
+      <span class="status-badge">Beta</span>
+      <button type="button" class="app-version" id="appVersionTag" aria-haspopup="dialog"></button>
+    </div>
+    <div class="app-sub">
+      <span>Comparación píxel a píxel</span>
+      <span class="app-sub-formats">// PDF · AI · SVG · JPG · PNG</span>
+    </div>
+  </div>
 </div>
 
 <div class="grid2">
@@ -443,6 +477,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <details class="help-item">
       <summary>Cómo se usa<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
+        <p>Pensada para ordenador: necesitas pantalla grande y ratón o trackpad para marcar alineación y revisar zonas con precisión.</p>
         <ol>
           <li>Carga la Imagen A (original) y la Imagen B (modificado).</li>
           <li>Si hace falta, marca los puntos de alineación antes de comparar.</li>
@@ -500,7 +535,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </section>
 
 <div class="app-footer">
-  Desarrollado por <a href="https://diegomondelo.com" target="_blank" rel="noopener">Diego Mondelo</a>
+  Desarrollado por <a href="https://diegomondelo.com" target="_blank" rel="noopener" class="footer-dev-link"><svg class="app-logo app-logo--footer" viewBox="0 0 585.11 95.44" aria-hidden="true" focusable="false"><use href="#logo-dmondelo"></use></svg> Diego Mondelo</a>
   <span class="footer-sep">//</span>
   Tus archivos no salen de tu equipo: todo el procesamiento ocurre en el navegador.
   <span class="footer-sep">//</span>
