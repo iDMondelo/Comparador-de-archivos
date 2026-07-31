@@ -167,11 +167,11 @@ function updateRefInfo(which){
 
 function updateAlignGuide(){
   let msg;
-  if(!pointsA[0])msg='Marca el punto 1 en la imagen A.';
-  else if(!pointsB[0])msg='Marca el mismo punto físico (punto 1) en la imagen B.';
-  else if(!pointsA[1])msg='Marca un segundo punto en la imagen A, distinto del primero (otra cruz de registro, esquina o vértice) — opcional, corrige también escala y giro.';
-  else if(!pointsB[1])msg='Marca el mismo segundo punto físico en la imagen B.';
-  else msg='4 puntos marcados. Puedes arrastrar cualquier marca para ajustarla o borrarla con el botón ×.';
+  if(!pointsA[0])msg='Si vas a alinear: punto 1 en la imagen A';
+  else if(!pointsB[0])msg='Siguiente: punto 1 en la imagen B';
+  else if(!pointsA[1])msg='Siguiente: punto 2 en la imagen A — opcional; con 1 punto ya se corrige el desplazamiento, el segundo añade escala y giro';
+  else if(!pointsB[1])msg='Siguiente: punto 2 en la imagen B';
+  else msg='Alineación completa — escala, giro y desplazamiento corregidos';
   alignGuideEl.textContent=msg;
 }
 
