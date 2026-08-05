@@ -51,11 +51,32 @@ async function openPdf(file){
   return{pdfDoc,pageCount:pdfDoc.numPages};
 }
 
+// DIAGNÓSTICO Fase 1 (alineación por cajas de página): vuelca por consola
+// todo lo que la API pública de PDF.js 4.10.38 realmente expone de una
+// página. `view` NO es el MediaBox: el worker lo calcula como la
+// intersección de CropBox y MediaBox. MediaBox/CropBox por separado se
+// parsean dentro del worker pero nunca cruzan a este hilo, y BleedBox/
+// TrimBox/ArtBox no se parsean en absoluto en esta versión — se deja
+// constancia explícita en el log para no dar a entender que existen.
+function logPdfPageBoxes(page,label){
+  const PT_TO_MM=25.4/72;
+  const [x0,y0,x1,y1]=page.view;
+  const wMm=(x1-x0)*PT_TO_MM,hMm=(y1-y0)*PT_TO_MM;
+  console.group(`Cajas PDF — ${label} (página ${page.pageNumber})`);
+  console.log(`view (CropBox∩MediaBox): [${x0}, ${y0}, ${x1}, ${y1}] pt  →  ${wMm.toFixed(1)} × ${hMm.toFixed(1)} mm`);
+  console.log(`rotate: ${page.rotate}°`);
+  console.log(`userUnit: ${page.userUnit}`);
+  console.log('MediaBox / CropBox por separado: no accesibles — el worker los calcula pero no los transmite al hilo principal');
+  console.log('BleedBox / TrimBox / ArtBox: no definida — PDF.js 4.10.38 no las parsea');
+  console.groupEnd();
+}
+
 // Renderiza una página del PDF a canvas al DPI elegido. Comprueba el
 // tamaño ANTES de crear el canvas para no intentar el render y colgar el
 // navegador con documentos grandes a PPP alto.
-async function renderPdfPageToCanvas(pdfDoc,pageNum,dpi){
+async function renderPdfPageToCanvas(pdfDoc,pageNum,dpi,label){
   const page=await pdfDoc.getPage(pageNum);
+  logPdfPageBoxes(page,label||'documento');
   const viewport=page.getViewport({scale:dpi/72});
   checkRenderSize(viewport.width,viewport.height);
   const canvas=document.createElement('canvas');
@@ -159,7 +180,7 @@ async function rerenderPdfSource(which,changes){
   Object.assign(source,changes);
   status.textContent='Renderizando página…';
   try{
-    const r=await renderPdfPageToCanvas(source.pdfDoc,source.pageNum,source.dpi);
+    const r=await renderPdfPageToCanvas(source.pdfDoc,source.pageNum,source.dpi,source.file&&source.file.name);
     Object.assign(source,r);
     status.textContent='';
     if(typeof onPdfSourceUpdated==='function')onPdfSourceUpdated(which);
