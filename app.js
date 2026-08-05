@@ -110,7 +110,7 @@ async function handleFileSelected(file,which){
     if(kind==='pdf'||kind==='ai'){
       const{pdfDoc,pageCount}=await openPdf(file);
       const dpi=300;
-      const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi);
+      const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi,file.name);
       source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false};
     }else{
       const rendered=await loadRasterOrSvg(file,300);
