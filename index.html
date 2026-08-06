@@ -229,6 +229,37 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .version-entry ul{padding-left:1.1em;color:var(--ink-dim);font-size:var(--caption-size);line-height:1.6}
 .version-entry li{margin-bottom:2px}
 
+/* ---- modal grande (selección de elemento vectorial) ---- */
+.modal-lg{max-width:96vw;max-height:92vh}
+.modal-lg .modal-body{overflow-y:auto;padding:var(--space-4) var(--space-5)}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-5);border-top:0.5px solid var(--border)}
+.vp-toolbar{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim)}
+.vp-toolbar label{display:inline-flex;align-items:center;gap:6px}
+.vp-progress{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim)}
+.vp-stage-grid{margin-bottom:var(--space-2)}
+.vp-stage-wrap{position:relative;height:min(48vh,460px);border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.vp-stage-canvas{display:block;cursor:crosshair}
+.vp-overlay-svg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+.vp-overlay-svg path{vector-effect:non-scaling-stroke}
+.vp-hover-path{fill:none;stroke:var(--marker);stroke-width:2}
+.vp-persistent-outline{fill:none;stroke:var(--accent-gold-deep);stroke-width:2}
+.vp-persistent-outline.pair2{stroke:var(--primary)}
+.vp-anchor-dot{fill:var(--surface);stroke:var(--accent-gold-deep);stroke-width:1.5}
+.vp-anchor-dot.active{fill:var(--accent-gold-deep)}
+.vp-floating-label{position:absolute;pointer-events:none;background:var(--surface);border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:var(--elevation-2);padding:4px 8px;font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink);white-space:nowrap;z-index:5}
+.vp-anchor-choice{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:var(--space-2)}
+.vp-anchor-choice .vp-anchor-opt{padding:4px 10px;font-size:12px}
+.vp-anchor-choice .vp-anchor-opt.active{background:var(--primary-bg-subdued-hover);border-color:var(--primary-deep);color:var(--primary-deep)}
+.vp-verify{margin-top:var(--space-3);border-top:0.5px solid var(--border);padding-top:var(--space-3)}
+.vp-verify-preview{display:inline-block;border-radius:var(--radius-md);border:0.5px solid var(--border);overflow:hidden;background:var(--surface)}
+.vp-second-element-row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)}
+
+/* ---- indicador de método de alineación activo ---- */
+.align-method-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--primary-deep);background:var(--primary-bg-subdued-hover);border-radius:var(--radius-pill);padding:2px 10px;margin-left:var(--space-2);display:inline-block;vertical-align:middle}
+
+/* ---- nudge por teclado: foco visible sobre un marcador seleccionado ---- */
+.ref-marker:focus,.ref-marker.nudge-active{outline:2px solid var(--accent);outline-offset:2px;border-radius:50%}
+
 /* ---- avisos de beta / contacto ---- */
 .feedback-block{border-top:0.5px solid var(--border);margin-top:var(--space-4);padding-top:var(--space-3);font-size:var(--caption-size);color:var(--ink-dim);line-height:1.6}
 .feedback-block a{color:var(--primary);text-decoration:none}
@@ -341,8 +372,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 
 <div id="alignSection" style="display:none">
-  <div class="title">Alineación — opcional</div>
-  <p class="align-explain">Solo necesaria si las dos versiones tienen distinto tamaño, resolución o rotación. Marca hasta 2 puntos de referencia en el mismo punto físico del artwork en ambas imágenes.</p>
+  <div class="title">Alineación — opcional <span class="align-method-badge" id="alignMethodBadge"></span></div>
+  <p class="align-explain">Solo necesaria si las dos versiones tienen distinto tamaño, resolución o rotación. Marca hasta 2 puntos de referencia en el mismo punto físico del artwork en ambas imágenes, o alinea por un elemento del propio diseño.</p>
+  <button class="action" id="btnOpenVectorPicker" style="display:none;margin-bottom:var(--space-3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear por elemento vectorial…</button>
   <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
   <div class="align-guide" id="alignGuideText">Si vas a alinear: punto 1 en la imagen A</div>
   <div class="grid2">
@@ -544,6 +576,81 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <a href="#" id="footerVersionLink" aria-haspopup="dialog">Historial de versiones</a>
 </div>
 
+<div class="modal-backdrop" id="vectorPickerBackdrop">
+  <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="vectorPickerTitle">
+    <div class="modal-header">
+      <h3 id="vectorPickerTitle">Seleccionar elemento de alineación</h3>
+      <button type="button" class="modal-close" id="vectorPickerClose" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="vp-toolbar">
+        <label><input type="checkbox" id="vpIncludeText"> Incluir texto trazado</label>
+        <span class="hint" id="vpFilterStats"></span>
+        <span class="hint">Alt + rueda: ciclar elementos superpuestos</span>
+      </div>
+      <div class="vp-progress" id="vpProgress" style="display:none">
+        <span id="vpProgressText"></span>
+        <button class="action" id="vpCancelBuild">Cancelar</button>
+      </div>
+      <div class="grid2 vp-stage-grid">
+        <div>
+          <div class="vp-stage-wrap" id="vpStageWrapA">
+            <canvas id="vpCanvasA" class="vp-stage-canvas"></canvas>
+            <svg id="vpOverlayA" class="vp-overlay-svg"></svg>
+            <div class="vp-floating-label" id="vpFloatLabelA" style="display:none"></div>
+          </div>
+          <div class="vp-anchor-choice" id="vpAnchorChoiceA" style="display:none">
+            <span class="hint">Ancla en A:</span>
+            <button type="button" class="action vp-anchor-opt active" data-anchor="center">Centro</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="tl">Esq. sup. izq.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="tr">Esq. sup. der.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="bl">Esq. inf. izq.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="br">Esq. inf. der.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="node">Nodo del trazado…</button>
+          </div>
+        </div>
+        <div>
+          <div class="vp-stage-wrap" id="vpStageWrapB">
+            <canvas id="vpCanvasB" class="vp-stage-canvas"></canvas>
+            <svg id="vpOverlayB" class="vp-overlay-svg"></svg>
+            <div class="vp-floating-label" id="vpFloatLabelB" style="display:none"></div>
+          </div>
+          <div class="vp-anchor-choice" id="vpAnchorChoiceB" style="display:none">
+            <span class="hint">Ancla en B:</span>
+            <button type="button" class="action vp-anchor-opt active" data-anchor="center">Centro</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="tl">Esq. sup. izq.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="tr">Esq. sup. der.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="bl">Esq. inf. izq.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="br">Esq. inf. der.</button>
+            <button type="button" class="action vp-anchor-opt" data-anchor="node">Nodo del trazado…</button>
+          </div>
+        </div>
+      </div>
+      <div id="vpCandidatesPanel" style="display:none">
+        <div class="regions-toolbar"><span>Candidatos en B</span></div>
+        <div class="regions-list" id="vpCandidatesList"></div>
+      </div>
+      <div class="vp-verify" id="vpVerify" style="display:none">
+        <div class="field-label">Verificación antes de aplicar</div>
+        <div class="vp-verify-preview"><canvas id="vpVerifyCanvas" width="200" height="200"></canvas></div>
+        <div class="align-transform-summary" id="vpTransformSummary"></div>
+        <div class="align-transform-warn" id="vpTransformWarn"></div>
+      </div>
+      <div class="vp-second-element-row" id="vpSecondElementRow" style="display:none">
+        <span class="hint">Para mayor precisión numérica, elige el segundo elemento lo más alejado posible del primero.</span>
+        <button type="button" class="action" id="vpAddSecondElement">Añadir un segundo elemento (escala + giro)</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="hint" id="vpMatchNotice"></span>
+      <div class="btn-row" style="margin:0">
+        <button type="button" class="action" id="vpCancel">Cancelar</button>
+        <button type="button" class="action primary" id="vpConfirm" disabled>Aplicar alineación</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="versionModalBackdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
     <div class="modal-header">
@@ -557,7 +664,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 
 <script src="./canvas-view.js"></script>
 <script src="./similarity.js"></script>
+<script src="./nudge.js"></script>
 <script src="./align.js"></script>
+<script src="./vector-geometry.js"></script>
+<script src="./vector-picker.js"></script>
 <script src="./pdf-source.js"></script>
 <script src="./text-analysis.js"></script>
 <script src="./regions-panel.js"></script>
