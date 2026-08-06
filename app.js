@@ -10,6 +10,13 @@
 // "vX" — no lleva el prefijo "v". `date` en formato AAAA-MM-DD. `changes` es
 // la lista de viñetas del changelog de esa versión.
 const VERSION_HISTORY=[
+  {version:'9',date:'2026-08-06',changes:[
+    'Nuevo método de alineación por elemento vectorial: selecciona un trazado/logo dentro de cada archivo (SVG o PDF/.ai) como referencia, en vez de la caja de página o puntos a ojo.',
+    'Emparejado automático del elemento equivalente entre ambas versiones por firma de forma (nº de nodos, proporciones, ángulos y longitudes de segmento), con lista de candidatos si hay ambigüedad.',
+    'Verificación visual y de transformación (escala/giro/desplazamiento) antes de aplicar la alineación.',
+    'Los puntos de referencia (manuales o de elemento vectorial) ahora se pueden afinar con las flechas del teclado.',
+    'Indicador del método de alineación activo, con posibilidad de cambiar entre elemento vectorial, caja de página o puntos manuales.'
+  ]},
   {version:'8',date:'2026-07-30',changes:[
     'Añade ayuda plegable en la pantalla inicial (qué hace la herramienta, cómo usarla, umbral ΔE, alineación, formatos, limitaciones, privacidad).',
     'Añade este historial de versiones, accesible desde la cabecera y el pie.',
@@ -536,6 +543,7 @@ document.getElementById('btnExportReport').onclick=()=>{
     imagenA:{nombre:nameA.textContent,ancho:sourceA.naturalWidth,alto:sourceA.naturalHeight,tipo:sourceA.sourceType,ppp:sourceA.dpi||null,textoModo:sourceA.textMode||null},
     imagenB:{nombre:nameB.textContent,ancho:sourceB.naturalWidth,alto:sourceB.naturalHeight,tipo:sourceB.sourceType,ppp:sourceB.dpi||null,textoModo:sourceB.textMode||null},
     areaComparada:{ancho:cW,alto:cH,porcentaje:Number((comparedAreaPixels/(cW*cH)*100).toFixed(1))},
+    metodoAlineacion:typeof activeAlignMethod!=='undefined'?activeAlignMethod:null,
     puntosReferencia:(reportRefA&&reportRefB)?{
       A:reportTransform?{p1:reportRefA,p2:refA2}:reportRefA,
       B:reportTransform?{p1:reportRefB,p2:refB2}:reportRefB,

@@ -1,0 +1,415 @@
+// ============================================================================
+// vector-geometry.js — extracción de geometría vectorial (SVG y PDF/.ai),
+// índice espacial para hit-testing, heurística de texto trazado y cálculo de
+// transformación con 1 elemento. Capa de entrada pura: no toca el motor ΔE,
+// no depende de align.js/app.js/vector-picker.js — solo lee el `source`
+// normalizado {drawable, naturalWidth, naturalHeight, sourceType, dpi, file,
+// pdfDoc, pageNum, viewport} que ya usa el resto de la app.
+//
+// Todo queda en el mismo espacio de píxel natural que `source.naturalWidth/
+// naturalHeight` (el que ya usa align.js), para poder anclar directamente
+// sobre pointsA/pointsB sin conversiones adicionales.
+// ============================================================================
+
+function pxToMm(px,dpi){
+  return px/(dpi||300)*25.4;
+}
+
+function isVectorGeometryAvailable(source){
+  return !!source&&(source.sourceType==='svg'||source.sourceType==='pdf'||source.sourceType==='ai');
+}
+
+// ---- firma de forma común (ángulos/longitudes normalizados) ---------------
+// `pts` es una polilínea ya en espacio de píxel; si `isClosed`, el último
+// punto debe repetir al primero (mismo convenio en SVG y PDF más abajo).
+function computePolylineSignatureData(pts,isClosed){
+  const n=pts.length;
+  const segLens=[];
+  let perimeter=0;
+  for(let i=0;i<n-1;i++){
+    const dx=pts[i+1][0]-pts[i][0],dy=pts[i+1][1]-pts[i][1];
+    const len=Math.hypot(dx,dy);
+    segLens.push(len);
+    perimeter+=len;
+  }
+  const segLengths=perimeter>0?segLens.map(l=>l/perimeter):segLens.map(()=>0);
+  const angles=[];
+  for(let i=1;i<n-1;i++){
+    const v1x=pts[i][0]-pts[i-1][0],v1y=pts[i][1]-pts[i-1][1];
+    const v2x=pts[i+1][0]-pts[i][0],v2y=pts[i+1][1]-pts[i][1];
+    let da=Math.atan2(v2y,v2x)-Math.atan2(v1y,v1x);
+    while(da<0)da+=Math.PI*2;
+    while(da>=Math.PI*2)da-=Math.PI*2;
+    angles.push(da);
+  }
+  return{angles,segLengths};
+}
+
+function computeShapeSignature(el){
+  return{nodeCount:el.nodeCount,aspectRatio:el.aspectRatio,angles:el.angles,segLengths:el.segLengths,isClosed:el.isClosed};
+}
+
+// ---- extracción SVG ---------------------------------------------------
+// El render de comparación sigue rasterizando el SVG a <img> (renderSvgToCanvas
+// en pdf-source.js) — eso no cambia. Para el picker se monta el SVG inline por
+// separado (oculto, visibility:hidden, tamaño = el mismo natural/dpi que ya usa
+// el render), únicamente para poder leer getBBox()/getScreenCTM().
+
+async function extractSvgGeometry(source){
+  const text=await source.file.text();
+  const svgDoc=new DOMParser().parseFromString(text,'image/svg+xml');
+  const svgRoot=svgDoc.documentElement;
+  if(!svgRoot||svgRoot.nodeName!=='svg'||svgDoc.querySelector('parsererror')){
+    throw new Error('SVG inválido o con errores de parseo');
+  }
+
+  const scale=(source.dpi||300)/96; // mismo factor que renderSvgToCanvas
+  const cssW=source.naturalWidth/scale,cssH=source.naturalHeight/scale;
+
+  const container=document.createElement('div');
+  container.style.cssText=`position:fixed;left:0;top:0;width:${cssW}px;height:${cssH}px;visibility:hidden;pointer-events:none;z-index:-1;overflow:hidden;`;
+  document.body.appendChild(container);
+
+  const elements=[];
+  try{
+    const mounted=document.importNode(svgRoot,true);
+    mounted.setAttribute('width','100%');
+    mounted.setAttribute('height','100%');
+    container.appendChild(mounted);
+
+    const nodes=Array.from(mounted.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line'))
+      .filter(el=>!el.closest('defs,symbol,clipPath,mask,pattern'));
+
+    let nextId=0;
+    for(const el of nodes){
+      try{
+        const shapeEl=buildSvgElement(el,nextId,scale);
+        if(shapeEl){elements.push(shapeEl);nextId++;}
+      }catch(e){/* elemento puntual con geometría degenerada — se ignora, no bloquea el resto */}
+    }
+  }finally{
+    container.remove();
+  }
+  return elements;
+}
+
+function buildSvgElement(el,id,scale){
+  const ctm=el.getScreenCTM();
+  if(!ctm)return null;
+  const tag=el.tagName.toLowerCase();
+  const tf=(x,y)=>{
+    const p=new DOMPoint(x,y).matrixTransform(ctm);
+    return[p.x*scale,p.y*scale];
+  };
+
+  let pts=null,isClosed=false;
+  if(tag==='path'){
+    const len=el.getTotalLength();
+    if(!(len>0))return null;
+    const N=Math.max(8,Math.min(64,Math.round(len/3)));
+    pts=[];
+    for(let i=0;i<=N;i++){
+      const lp=el.getPointAtLength(len*i/N);
+      pts.push(tf(lp.x,lp.y));
+    }
+    const dAttr=(el.getAttribute('d')||'').trim();
+    isClosed=/[Zz]\s*$/.test(dAttr)||Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1])<0.5;
+  }else if(tag==='rect'){
+    const x=parseFloat(el.getAttribute('x'))||0,y=parseFloat(el.getAttribute('y'))||0;
+    const w=parseFloat(el.getAttribute('width'))||0,h=parseFloat(el.getAttribute('height'))||0;
+    if(w<=0||h<=0)return null;
+    pts=[tf(x,y),tf(x+w,y),tf(x+w,y+h),tf(x,y+h),tf(x,y)];
+    isClosed=true;
+  }else if(tag==='circle'||tag==='ellipse'){
+    const cx=parseFloat(el.getAttribute('cx'))||0,cy=parseFloat(el.getAttribute('cy'))||0;
+    const rx=tag==='circle'?(parseFloat(el.getAttribute('r'))||0):(parseFloat(el.getAttribute('rx'))||0);
+    const ry=tag==='circle'?rx:(parseFloat(el.getAttribute('ry'))||0);
+    if(rx<=0||ry<=0)return null;
+    const N=32;
+    pts=[];
+    for(let i=0;i<=N;i++){
+      const a=i/N*Math.PI*2;
+      pts.push(tf(cx+rx*Math.cos(a),cy+ry*Math.sin(a)));
+    }
+    isClosed=true;
+  }else if(tag==='polygon'||tag==='polyline'){
+    const raw=(el.getAttribute('points')||'').trim().split(/[\s,]+/).filter(Boolean).map(Number);
+    pts=[];
+    for(let i=0;i+1<raw.length;i+=2)pts.push(tf(raw[i],raw[i+1]));
+    if(pts.length<2)return null;
+    isClosed=tag==='polygon';
+    if(isClosed)pts.push(pts[0]);
+  }else if(tag==='line'){
+    const x1=parseFloat(el.getAttribute('x1'))||0,y1=parseFloat(el.getAttribute('y1'))||0;
+    const x2=parseFloat(el.getAttribute('x2'))||0,y2=parseFloat(el.getAttribute('y2'))||0;
+    pts=[tf(x1,y1),tf(x2,y2)];
+    isClosed=false;
+  }else{
+    return null;
+  }
+  if(!pts||pts.length<2)return null;
+
+  const bbox=boundsOfPoints(pts);
+  if(bbox.w<=0&&bbox.h<=0)return null;
+
+  const{angles,segLengths}=computePolylineSignatureData(pts,isClosed);
+  return{
+    id,kind:'svg',bbox,
+    center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
+    nodeCount:pts.length-(isClosed?1:0),isClosed,
+    angles,segLengths,
+    aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
+    isLikelyOutlinedText:false,isRealText:false,
+    d:pointsToPathD(pts,isClosed),pts
+  };
+}
+
+function boundsOfPoints(pts){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const[px,py]of pts){
+    if(px<minX)minX=px;if(px>maxX)maxX=px;
+    if(py<minY)minY=py;if(py>maxY)maxY=py;
+  }
+  return{x:minX,y:minY,w:maxX-minX,h:maxY-minY};
+}
+
+function pointsToPathD(pts,isClosed){
+  let d=`M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)} `;
+  for(let i=1;i<pts.length;i++)d+=`L ${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)} `;
+  if(isClosed)d+='Z ';
+  return d;
+}
+
+// ---- extracción PDF/.ai ------------------------------------------------
+// Puerto a producción del bucle validado en el diagnóstico Fase 1
+// (getOperatorList + pila CTM + mapeo por viewport.transform). Reutiliza
+// `loadPdfJs()`, ya definida en pdf-source.js — mismo build vendido, sin
+// duplicar carga de PDF.js (la función existe en window aunque este script
+// se cargue antes: solo se invoca cuando el usuario abre el picker, mucho
+// después de que todos los <script> ya se hayan ejecutado).
+
+async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
+  const{onProgress,signal}=opts||{};
+  const lib=await loadPdfJs();
+  const OPS=lib.OPS,Util=lib.Util;
+  const page=await pdfDoc.getPage(pageNum);
+  const opList=await page.getOperatorList();
+  const{fnArray,argsArray}=opList;
+
+  const IDENTITY=[1,0,0,1,0,0];
+  let ctm=IDENTITY;
+  const stack=[];
+  let inText=false;
+  let nextId=0;
+  const elements=[];
+
+  function combinedMatrix(){return Util.transform(viewport.transform,ctm);}
+  function mapPt(x,y){return Util.applyTransform([x,y],combinedMatrix());}
+
+  function finishSubpath(pts,isTextFlag){
+    if(!pts||pts.length<2)return;
+    const isClosed=pts.length>2&&Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1])<0.01;
+    const bbox=boundsOfPoints(pts);
+    if(bbox.w<=0&&bbox.h<=0)return;
+    const{angles,segLengths}=computePolylineSignatureData(pts,isClosed);
+    elements.push({
+      id:nextId++,kind:'pdf-path',bbox,
+      center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
+      nodeCount:pts.length-(isClosed?1:0),isClosed,
+      angles,segLengths,
+      aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
+      isLikelyOutlinedText:false,isRealText:!!isTextFlag,
+      d:pointsToPathD(pts,isClosed),pts
+    });
+  }
+
+  for(let i=0;i<fnArray.length;i++){
+    if(signal&&signal.aborted){const err=new Error('cancelado');err.aborted=true;throw err;}
+    const fn=fnArray[i],args=argsArray[i];
+    if(fn===OPS.save){
+      stack.push(ctm);
+    }else if(fn===OPS.restore){
+      ctm=stack.length?stack.pop():IDENTITY;
+    }else if(fn===OPS.transform){
+      ctm=Util.transform(ctm,args);
+    }else if(fn===OPS.beginText){
+      inText=true;
+    }else if(fn===OPS.endText){
+      inText=false;
+    }else if(fn===OPS.constructPath){
+      const[ops,coords]=args;
+      let j=0,curPts=null;
+      for(let k=0;k<ops.length;k++){
+        const op=ops[k];
+        if(op===OPS.moveTo){
+          if(curPts)finishSubpath(curPts,inText);
+          const x=coords[j++],y=coords[j++];
+          curPts=[mapPt(x,y)];
+        }else if(op===OPS.lineTo){
+          const x=coords[j++],y=coords[j++];
+          if(curPts)curPts.push(mapPt(x,y));
+        }else if(op===OPS.curveTo){
+          j+=4; // x1,y1,x2,y2 — puntos de control, no cuentan como nodo
+          const x=coords[j++],y=coords[j++];
+          if(curPts)curPts.push(mapPt(x,y));
+        }else if(op===OPS.curveTo2){ // 'v': ctrl1 = punto actual
+          j+=2; // x2,y2
+          const x=coords[j++],y=coords[j++];
+          if(curPts)curPts.push(mapPt(x,y));
+        }else if(op===OPS.curveTo3){ // 'y': ctrl2 = punto final
+          j+=2; // x1,y1
+          const x=coords[j++],y=coords[j++];
+          if(curPts)curPts.push(mapPt(x,y));
+        }else if(op===OPS.closePath){
+          if(curPts&&curPts.length)curPts.push(curPts[0]);
+        }else if(op===OPS.rectangle){
+          if(curPts)finishSubpath(curPts,inText);
+          const rx=coords[j++],ry=coords[j++],rw=coords[j++],rh=coords[j++];
+          finishSubpath([mapPt(rx,ry),mapPt(rx+rw,ry),mapPt(rx+rw,ry+rh),mapPt(rx,ry+rh),mapPt(rx,ry)],inText);
+          curPts=null;
+        }
+      }
+      if(curPts)finishSubpath(curPts,inText);
+    }
+    if(onProgress&&i>0&&i%20000===0){
+      onProgress({done:i,total:fnArray.length});
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  if(onProgress)onProgress({done:fnArray.length,total:fnArray.length});
+  return elements;
+}
+
+// ---- heurística "texto trazado" ----------------------------------------
+// Señal de clúster (fila de elementos pequeños de altura similar), no de
+// forma individual — un contorno de letra aislado es indistinguible de
+// cualquier otro trazado pequeño. Aproximada por diseño: el toggle "incluir
+// texto trazado" del picker es el escape hatch cuando se equivoca.
+
+function classifyOutlinedText(elements,dpi){
+  const scale=(dpi||300)/96;
+  const minH=2*scale,maxH=40*scale; // ~2-40px a 96dpi, escalado al dpi de render actual
+  const rows=[];
+  const sorted=elements.slice().sort((a,b)=>a.center.y-b.center.y);
+  for(const el of sorted){
+    let row=rows.find(r=>Math.abs(r.avgY-el.center.y)<r.avgH*1.5+2);
+    if(!row){row={els:[],avgY:el.center.y,avgH:el.bbox.h||1};rows.push(row);}
+    row.els.push(el);
+    row.avgY=row.els.reduce((s,e)=>s+e.center.y,0)/row.els.length;
+    row.avgH=row.els.reduce((s,e)=>s+e.bbox.h,0)/row.els.length;
+  }
+  let filtered=0;
+  for(const row of rows){
+    if(row.els.length<3)continue;
+    const heights=row.els.map(e=>e.bbox.h);
+    const mean=heights.reduce((a,b)=>a+b,0)/heights.length;
+    if(mean<minH||mean>maxH)continue;
+    const variance=heights.reduce((a,h)=>a+(h-mean)*(h-mean),0)/heights.length;
+    const cv=mean>0?Math.sqrt(variance)/mean:1;
+    if(cv>=0.25)continue;
+    for(const e of row.els){e.isLikelyOutlinedText=true;filtered++;}
+  }
+  return{filtered,total:elements.length};
+}
+
+// ---- índice espacial (grid) para hit-testing sin recorrer todos los trazados
+// Volumen real medido en el diagnóstico Fase 1: ~500 elementos/página,
+// 25ms de extracción total — un grid uniforme es sobrado, no hace falta
+// quadtree.
+
+function buildSpatialIndex(elements,canvasW,canvasH){
+  const CELL=64;
+  const cols=Math.max(1,Math.ceil(canvasW/CELL));
+  const rows=Math.max(1,Math.ceil(canvasH/CELL));
+  const cells=new Map();
+  elements.forEach((el,idx)=>{
+    const x0=Math.max(0,Math.floor(el.bbox.x/CELL));
+    const y0=Math.max(0,Math.floor(el.bbox.y/CELL));
+    const x1=Math.min(cols-1,Math.floor((el.bbox.x+el.bbox.w)/CELL));
+    const y1=Math.min(rows-1,Math.floor((el.bbox.y+el.bbox.h)/CELL));
+    for(let cy=y0;cy<=y1;cy++){
+      for(let cx=x0;cx<=x1;cx++){
+        const k=cx+','+cy;
+        if(!cells.has(k))cells.set(k,[]);
+        cells.get(k).push(idx);
+      }
+    }
+  });
+  return{elements,cellSize:CELL,cols,rows,cells};
+}
+
+let _hitTestCtx=null;
+function getHitTestCtx(){
+  if(!_hitTestCtx)_hitTestCtx=document.createElement('canvas').getContext('2d');
+  return _hitTestCtx;
+}
+
+function pointInElement(el,x,y){
+  if(el._path2d===undefined){
+    try{el._path2d=new Path2D(el.d);}catch(e){el._path2d=null;}
+  }
+  if(!el._path2d)return true; // 'd' degenerado (p.ej. una línea): ya pasó el filtro de bbox
+  const ctx=getHitTestCtx();
+  if(ctx.isPointInPath(el._path2d,x,y))return true;
+  ctx.lineWidth=6; // margen generoso para trazados finos o líneas abiertas
+  return ctx.isPointInStroke(el._path2d,x,y);
+}
+
+// Devuelve los elementos bajo (x,y), más pequeño (más "profundo") primero —
+// para que el ciclo Alt+rueda del picker tenga un orden estable.
+function hitTestPoint(index,x,y,includeOutlinedText){
+  const cx=Math.floor(x/index.cellSize),cy=Math.floor(y/index.cellSize);
+  const idxs=index.cells.get(cx+','+cy);
+  if(!idxs||!idxs.length)return[];
+  const seen=new Set(),hits=[];
+  for(const i of idxs){
+    if(seen.has(i))continue;
+    seen.add(i);
+    const el=index.elements[i];
+    if(!includeOutlinedText&&el.isLikelyOutlinedText)continue;
+    if(x<el.bbox.x||x>el.bbox.x+el.bbox.w||y<el.bbox.y||y>el.bbox.y+el.bbox.h)continue;
+    if(!pointInElement(el,x,y))continue;
+    hits.push(el);
+  }
+  hits.sort((a,b)=>(a.bbox.w*a.bbox.h)-(b.bbox.w*b.bbox.h));
+  return hits;
+}
+
+// ---- punto de entrada único: extracción + índice, cacheado por fuente -----
+
+async function buildVectorIndex(source,opts){
+  const{onProgress,signal}=opts||{};
+  const cacheKey=`${source.dpi}|${source.pageNum||1}`;
+  if(source._vectorIndex&&source._vectorIndex.cacheKey===cacheKey){
+    if(onProgress)onProgress({done:1,total:1});
+    return source._vectorIndex;
+  }
+  let elements;
+  if(source.sourceType==='svg'){
+    elements=await extractSvgGeometry(source);
+    if(onProgress)onProgress({done:1,total:1});
+  }else if(source.sourceType==='pdf'||source.sourceType==='ai'){
+    elements=await extractPdfGeometry(source.pdfDoc,source.pageNum,source.viewport,{onProgress,signal});
+  }else{
+    throw new Error('Esta fuente no tiene geometría vectorial disponible.');
+  }
+  const textStats=classifyOutlinedText(elements,source.dpi);
+  const spatialIndex=buildSpatialIndex(elements,source.naturalWidth,source.naturalHeight);
+  const index={elements,spatialIndex,stats:{total:elements.length,filteredText:textStats.filtered},cacheKey};
+  source._vectorIndex=index;
+  return index;
+}
+
+// ---- Fase 3 — transformación con 1 elemento por archivo -------------------
+// Con 2 elementos se reutiliza computeSimilarityTransform (similarity.js) tal
+// cual, sin ninguna función nueva.
+
+function computeSingleElementTransform(elA,elB,anchorA,anchorB){
+  const scaleX=elA.bbox.w/elB.bbox.w,scaleY=elA.bbox.h/elB.bbox.h;
+  const scale=(scaleX+scaleY)/2;
+  const offset={dx:Math.round(anchorA.x-anchorB.x),dy:Math.round(anchorA.y-anchorB.y)};
+  const skewRatio=Math.max(scaleX,scaleY)/Math.max(Math.min(scaleX,scaleY),1e-6);
+  const warnings=[];
+  if(skewRatio-1>0.02)warnings.push('Las proporciones horizontal/vertical difieren más de un 2% — puede haber un giro que un solo elemento no puede deducir. Selecciona un segundo elemento para calcular el giro.');
+  return{scale,thetaDeg:0,offset,warnings};
+}

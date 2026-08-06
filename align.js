@@ -19,6 +19,7 @@ const alignZoomInfo=document.getElementById('alignZoomInfo');
 const alignGuideEl=document.getElementById('alignGuideText');
 const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
 const alignTransformWarnEl=document.getElementById('alignTransformWarn');
+const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
 const ALIGN_ZOOM_WIN=28;
 const ALIGN_ZOOM_MAX=40;
 const REF_HIT_RADIUS=14; // px de pantalla, para detectar arrastre sobre una marca ya colocada
@@ -29,6 +30,11 @@ let pointsA=[null,null],pointsB=[null,null];
 // Alias que consume app.js: refA/refB (punto 1, modo 0/1 punto sin tocar) y
 // refA2/refB2 (punto 2, solo presentes en modo similitud completa).
 let refA=null,refB=null,refA2=null,refB2=null;
+
+// Método de alineación actualmente en uso — puramente informativo (compare()
+// sigue decidiendo su rama solo por refA/refB/refA2/refB2, esto es solo para
+// el indicador de la UI): 'vector'|'pagebox'|'manual'|'none'.
+let activeAlignMethod='none';
 
 const markerEls={A:[null,null],B:[null,null]};
 const alignViewState={A:{zoom:1,panX:0,panY:0},B:{zoom:1,panX:0,panY:0}};
@@ -75,6 +81,16 @@ function createMarkerEl(which,idx){
   const btn=el.querySelector('.rm-delete');
   btn.addEventListener('mousedown',e=>e.stopPropagation());
   btn.addEventListener('click',e=>{e.stopPropagation();deletePoint(which,idx);});
+  if(typeof registerNudgeable==='function'){
+    registerNudgeable(el,{
+      getPoint:()=>(which==='A'?pointsA:pointsB)[idx],
+      setPoint:(p)=>{
+        const source=which==='A'?sourceA:sourceB;
+        (which==='A'?pointsA:pointsB)[idx]=clampToSource(p,source);
+      },
+      onChange:()=>{positionMarkerEl(which,idx);refreshAfterPointsChange(which);}
+    });
+  }
   return el;
 }
 
@@ -120,6 +136,7 @@ function updateAlignSection(){
     alignSection.style.display='block';
     initAlignCanvas('A',sourceA);
     initAlignCanvas('B',sourceB);
+    if(typeof updateVectorPickerEntryVisibility==='function')updateVectorPickerEntryVisibility();
   }else{
     alignSection.style.display='none';
   }
@@ -204,12 +221,38 @@ function syncRefGlobals(){
   refB2=pointsB[1]||null;
 }
 
+function updateAlignMethodBadge(){
+  if(!alignMethodBadgeEl)return;
+  const labels={vector:'elemento vectorial',manual:'puntos manuales',pagebox:'caja de página',none:'—'};
+  alignMethodBadgeEl.textContent='Método activo: '+(labels[activeAlignMethod]||labels.none);
+}
+
+// Todo clic/arrastre manual del usuario sobre los canvases de #alignSection
+// pasa por aquí — por eso es el sitio natural para degradar el método activo
+// a 'manual' (o 'pagebox' con 0 puntos). setPointsFromVector() llama a esta
+// misma función y luego SOBRESCRIBE activeAlignMethod a 'vector' a
+// continuación, así que un resultado del picker no queda mal etiquetado.
 function refreshAfterPointsChange(which){
   updateRefInfo(which);
   syncRefGlobals();
   updateAlignGuide();
   updateTransformSummary();
+  activeAlignMethod=(pointsA[0]||pointsB[0])?'manual':'pagebox';
+  updateAlignMethodBadge();
   if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]));
+}
+
+// Llamado desde vector-picker.js al confirmar la selección de elemento
+// vectorial. `pts` = {A1,B1,A2?,B2?} en coordenadas naturales — deja los
+// puntos como marcas .ref-marker normales (nudgeables, arrastrables, etc.),
+// exactamente el mismo estado que ya consume compare().
+function setPointsFromVector(pts){
+  pointsA[0]=pts.A1||null;pointsB[0]=pts.B1||null;
+  pointsA[1]=pts.A2||null;pointsB[1]=pts.B2||null;
+  positionAllMarkers('A');positionAllMarkers('B');
+  refreshAfterPointsChange('A');refreshAfterPointsChange('B');
+  activeAlignMethod='vector';
+  updateAlignMethodBadge();
 }
 
 function placeNextPoint(which,n){
@@ -278,6 +321,11 @@ function setupAlignInteraction(which){
     const hitIdx=hitTestMarker(which,e.clientX,e.clientY);
     if(hitIdx>=0){
       pointDrag={which,idx:hitIdx};
+      // preventDefault() de aquí abajo bloquea el foco automático del
+      // navegador — se fuerza a mano para que el nudge por teclado (flechas)
+      // quede activo nada más soltar el arrastre.
+      const markerEl=markerEls[which][hitIdx];
+      if(markerEl)markerEl.focus();
       e.preventDefault();
       return;
     }
@@ -400,6 +448,8 @@ function resetRefPoints(){
   syncRefGlobals();
   updateAlignGuide();
   updateTransformSummary();
+  activeAlignMethod=(typeof sourceA!=='undefined'&&sourceA&&typeof sourceB!=='undefined'&&sourceB)?'pagebox':'none';
+  updateAlignMethodBadge();
   if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(false);
 }
 document.getElementById('btnResetRef').onclick=resetRefPoints;
