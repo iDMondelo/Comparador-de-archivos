@@ -20,6 +20,8 @@ const alignGuideEl=document.getElementById('alignGuideText');
 const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
 const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
+const alignFormatNoticeEl=document.getElementById('alignFormatNotice');
+const ALIGN_VECTOR_KINDS=['pdf','ai','svg'];
 const ALIGN_ZOOM_WIN=28;
 const ALIGN_ZOOM_MAX=40;
 const REF_HIT_RADIUS=14; // px de pantalla, para detectar arrastre sobre una marca ya colocada
@@ -137,9 +139,39 @@ function updateAlignSection(){
     initAlignCanvas('A',sourceA);
     initAlignCanvas('B',sourceB);
     if(typeof updateVectorPickerEntryVisibility==='function')updateVectorPickerEntryVisibility();
+    updateAlignFormatNotice();
   }else{
     alignSection.style.display='none';
   }
+}
+
+// Aviso específico según el formato de A y B: el método vectorial solo está
+// disponible para PDF/.AI/SVG, así que el mensaje debe reflejar de entrada
+// si el usuario ya está en el mejor escenario o si el resultado dependerá
+// de la puntería/resolución.
+function updateAlignFormatNotice(){
+  if(!alignFormatNoticeEl||!sourceA||!sourceB)return;
+  const aVec=ALIGN_VECTOR_KINDS.includes(sourceA.sourceType);
+  const bVec=ALIGN_VECTOR_KINDS.includes(sourceB.sourceType);
+  let text,cls;
+  if(aVec&&bVec){
+    text='Alineación vectorial disponible — máxima precisión';
+    cls='positive';
+  }else if(aVec!==bVec){
+    text='Comparando un formato vectorial con uno ráster: la comparación es posible pero menos fiable. Si puedes, exporta ambos al mismo formato y resolución.';
+    cls='warn';
+  }else{
+    const sameDims=sourceA.naturalWidth===sourceB.naturalWidth&&sourceA.naturalHeight===sourceB.naturalHeight;
+    if(!sameDims){
+      text=`A: ${sourceA.naturalWidth} × ${sourceA.naturalHeight} px · B: ${sourceB.naturalWidth} × ${sourceB.naturalHeight} px — dimensiones distintas`;
+      cls='warn-strong';
+    }else{
+      text='Los archivos ráster no permiten alineación vectorial. Para comparar dos imágenes es muy recomendable que ambas tengan el mismo tamaño de página y resolución: si no coinciden, el remuestreo introduce diferencias en los bordes que no son cambios reales del diseño.';
+      cls='warn';
+    }
+  }
+  alignFormatNoticeEl.textContent=text;
+  alignFormatNoticeEl.className='align-format-notice '+cls;
 }
 
 function alignEventToNatural(e,canvas){
@@ -171,8 +203,8 @@ function hideHoverMarker(which){
 
 function formatPointsInfo(pts){
   const parts=[];
-  if(pts[0])parts.push(`Punto 1: (${pts[0].x}, ${pts[0].y})`);
-  if(pts[1])parts.push(`Punto 2: (${pts[1].x}, ${pts[1].y})`);
+  if(pts[0])parts.push(`Punto 1: (${formatEs(pts[0].x,2)}, ${formatEs(pts[0].y,2)})`);
+  if(pts[1])parts.push(`Punto 2: (${formatEs(pts[1].x,2)}, ${formatEs(pts[1].y,2)})`);
   return parts.length?parts.join(' · '):'Sin puntos marcados';
 }
 
@@ -199,7 +231,7 @@ function formatEs(n,decimals){
 function updateTransformSummary(){
   if(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]){
     const t=computeSimilarityTransform(pointsA[0],pointsA[1],pointsB[0],pointsB[1]);
-    alignTransformSummaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${t.offset.dx}, ${t.offset.dy} px`;
+    alignTransformSummaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${formatEs(t.offset.dx,2)}, ${formatEs(t.offset.dy,2)} px`;
     alignTransformSummaryEl.style.display='block';
     const warns=transformWarnings(t.scale,t.thetaDeg,null);
     if(warns.length){

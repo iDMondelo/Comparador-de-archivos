@@ -10,6 +10,11 @@
 // "vX" — no lleva el prefijo "v". `date` en formato AAAA-MM-DD. `changes` es
 // la lista de viñetas del changelog de esa versión.
 const VERSION_HISTORY=[
+  {version:'10',date:'2026-08-07',changes:[
+    'Reorganiza el bloque de alineación: separa el método vectorial (recomendado, precisión exacta) del método de puntos manuales (alternativo), en vez de presentarlos como equivalentes.',
+    'Añade un aviso específico según el formato cargado: confirma cuándo hay alineación vectorial disponible, y advierte de las limitaciones al usar imágenes ráster o al mezclar un formato vectorial con uno ráster, mostrando las dimensiones detectadas cuando difieren.',
+    'Las coordenadas de los puntos y los valores de la transformación (escala, giro, desplazamiento) se muestran ahora redondeados a dos decimales, en vez de con precisión flotante completa.'
+  ]},
   {version:'9',date:'2026-08-06',changes:[
     'Nuevo método de alineación por elemento vectorial: selecciona un trazado/logo dentro de cada archivo (SVG o PDF/.ai) como referencia, en vez de la caja de página o puntos a ojo.',
     'Emparejado automático del elemento equivalente entre ambas versiones por firma de forma (nº de nodos, proporciones, ángulos y longitudes de segmento), con lista de candidatos si hay ambigüedad.',

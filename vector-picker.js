@@ -443,14 +443,14 @@ function vpUpdateTransformSummary(){
   if(!pts.A1||!pts.B1){summaryEl.style.display='none';warnEl.style.display='none';return;}
   if(pts.A2&&pts.B2){
     const t=computeSimilarityTransform(pts.A1,pts.A2,pts.B1,pts.B2);
-    summaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${t.offset.dx}, ${t.offset.dy} px`;
+    summaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${formatEs(t.offset.dx,2)}, ${formatEs(t.offset.dy,2)} px`;
     summaryEl.style.display='block';
     const warns=transformWarnings(t.scale,t.thetaDeg,null);
     if(warns.length){warnEl.textContent='Aviso: '+warns.join(' ');warnEl.style.display='block';}
     else warnEl.style.display='none';
   }else{
-    const dx=Math.round(pts.A1.x-pts.B1.x),dy=Math.round(pts.A1.y-pts.B1.y);
-    summaryEl.textContent=`Escala: 1,000× · Giro: 0,0° · Desplazamiento: ${dx}, ${dy} px (solo traslación — ancla "centro")`;
+    const dx=pts.A1.x-pts.B1.x,dy=pts.A1.y-pts.B1.y;
+    summaryEl.textContent=`Escala: 1,000× · Giro: 0,0° · Desplazamiento: ${formatEs(dx,2)}, ${formatEs(dy,2)} px (solo traslación — ancla "centro")`;
     summaryEl.style.display='block';
     warnEl.style.display='none';
   }
