@@ -147,7 +147,7 @@ function requestRegionsUpdate(){
     deWorker.postMessage({
       type:'regions',runId:currentRunId,
       threshold:parseInt(threshSlider.value),
-      minSizePct:parseFloat(minSizeInput.value)||0.8
+      minSizePct:parseFloat(minSizeInput.value)||0.1
     });
   },150);
 }

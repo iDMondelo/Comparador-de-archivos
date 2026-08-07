@@ -159,7 +159,7 @@ self.onmessage=function(e){
 // minSizePct/mergeDistPct son porcentajes del lado menor del lienzo
 // comparado (no píxeles absolutos), para que un PNG de 1000px y un PDF a
 // 600ppp se comporten de forma equivalente ante el mismo valor de UI.
-const REGION_MINSIZE_PCT_DEFAULT=0.8,REGION_MERGE_PCT_DEFAULT=0.6;
+const REGION_MINSIZE_PCT_DEFAULT=0.1,REGION_MERGE_PCT_DEFAULT=1.0;
 
 function computeRegions(deMap,w,h,threshold,minSizePct,mergeDistPct){
   const shortSide=Math.min(w,h);
