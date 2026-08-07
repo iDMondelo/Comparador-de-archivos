@@ -467,7 +467,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div id="regionsPanel">
       <div class="regions-toolbar">
         <label><input type="checkbox" id="toggleRegions" checked> Mostrar recuadros</label>
-        <label>Tamaño mín. <input type="number" id="regionMinSize" value="0.8" min="0.1" max="10" step="0.1" style="width:56px"> % del lado menor</label>
+        <label>Tamaño mín. <input type="number" id="regionMinSize" value="0.1" min="0.1" max="10" step="0.1" style="width:56px"> % del lado menor</label>
         <span class="hint" id="regionStatsInfo" style="margin:0"></span>
         <label>Grosor <input type="range" id="regionStrokeSize" min="1" max="6" step="1" value="3" style="width:70px"> <span id="regionStrokeVal">3</span> px</label>
         <label>Ordenar por
@@ -478,6 +478,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         </label>
         <span class="hint" style="margin:0">Navega con ← → o N/P</span>
       </div>
+      <div class="hint">Valores bajos detectan cambios pequeños como letras sueltas. Súbelo solo si aparecen demasiadas zonas de ruido.</div>
       <div class="regions-list" id="regionsList"></div>
     </div>
 
@@ -548,6 +549,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
           <li><strong>Umbral 5 o más</strong> — Solo si quieres localizar únicamente los cambios grandes e ignorar los matices.</li>
         </ul>
         <p>Subir el umbral <strong>oculta diferencias reales</strong>. Ante la duda, es mejor bajarlo y revisar más zonas.</p>
+        <p>El umbral ΔE filtra por intensidad del cambio de color. El tamaño mínimo filtra por extensión de la zona. Para no perder cambios pequeños, deja el tamaño mínimo bajo y ajusta el umbral si aparece demasiado ruido.</p>
       </div>
     </details>
     <details class="help-item">

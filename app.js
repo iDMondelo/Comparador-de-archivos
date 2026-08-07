@@ -6,58 +6,28 @@
 
 // Historial de versiones mostrado en el modal (cabecera "vX" / pie / modal).
 // Para publicar una versión nueva: añade un objeto al PRINCIPIO de este
-// array (más reciente primero). `version` es el número que se muestra como
-// "vX" — no lleva el prefijo "v". `date` en formato AAAA-MM-DD. `changes` es
-// la lista de viñetas del changelog de esa versión.
+// array (más reciente primero) y, si ya hay 5, elimina el último. `version`
+// es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
+// formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'11',date:'2026-08-07',changes:[
+    'Baja el tamaño mínimo de zona por defecto de 0,8 % a 0,1 % para no descartar cambios pequeños legítimos (letras sueltas, detalles finos).',
+    'Ajusta la fusión de regiones cercanas y añade texto de ayuda junto al campo para acompañar el nuevo valor.'
+  ]},
   {version:'10',date:'2026-08-07',changes:[
-    'Reorganiza el bloque de alineación: separa el método vectorial (recomendado, precisión exacta) del método de puntos manuales (alternativo), en vez de presentarlos como equivalentes.',
-    'Añade un aviso específico según el formato cargado: confirma cuándo hay alineación vectorial disponible, y advierte de las limitaciones al usar imágenes ráster o al mezclar un formato vectorial con uno ráster, mostrando las dimensiones detectadas cuando difieren.',
-    'Las coordenadas de los puntos y los valores de la transformación (escala, giro, desplazamiento) se muestran ahora redondeados a dos decimales, en vez de con precisión flotante completa.'
+    'Reorganiza el bloque de alineación separando el método vectorial (recomendado) del de puntos manuales, con un aviso según el formato cargado.',
+    'Redondea a dos decimales las coordenadas y los valores de transformación mostrados.'
   ]},
   {version:'9',date:'2026-08-06',changes:[
-    'Nuevo método de alineación por elemento vectorial: selecciona un trazado/logo dentro de cada archivo (SVG o PDF/.ai) como referencia, en vez de la caja de página o puntos a ojo.',
-    'Emparejado automático del elemento equivalente entre ambas versiones por firma de forma (nº de nodos, proporciones, ángulos y longitudes de segmento), con lista de candidatos si hay ambigüedad.',
-    'Verificación visual y de transformación (escala/giro/desplazamiento) antes de aplicar la alineación.',
-    'Los puntos de referencia (manuales o de elemento vectorial) ahora se pueden afinar con las flechas del teclado.',
-    'Indicador del método de alineación activo, con posibilidad de cambiar entre elemento vectorial, caja de página o puntos manuales.'
+    'Añade un método de alineación por elemento vectorial, con emparejado automático entre archivos y verificación visual antes de aplicar.',
+    'Suma indicador del método activo y ajuste fino de puntos con el teclado.'
   ]},
   {version:'8',date:'2026-07-30',changes:[
-    'Añade ayuda plegable en la pantalla inicial (qué hace la herramienta, cómo usarla, umbral ΔE, alineación, formatos, limitaciones, privacidad).',
-    'Añade este historial de versiones, accesible desde la cabecera y el pie.',
-    'Cambia el umbral ΔE por defecto de 5 a 1 y lo sugiere automáticamente en 2 ante JPG o alineación con transformación de escala/giro.'
+    'Añade ayuda plegable en la pantalla inicial y el historial de versiones.',
+    'Cambia el umbral ΔE por defecto de 5 a 1, con sugerencia automática a 2 ante JPG o alineación con escala/giro.'
   ]},
   {version:'7',date:'2026-07-30',changes:[
-    'Alineación por hasta 2 puntos de referencia por imagen: además de trasladar, corrige escala y giro, y marca las zonas sin contenido comparable de B.'
-  ]},
-  {version:'6a',date:'2026-07-30',changes:[
-    'Ajustes de textos: aviso de beta y desarrollo activo, número de versión en cabecera, enlace de contacto por correo.'
-  ]},
-  {version:'6',date:'2026-07-30',changes:[
-    'Publicación en GitHub Pages.'
-  ]},
-  {version:'5',date:'2026-07-30',changes:[
-    'Añade licencia y documentación del proyecto.'
-  ]},
-  {version:'4',date:'2026-07-30',changes:[
-    'Recuadros de zonas diferentes más precisos y legibles.',
-    'Mejoras en la exportación a PNG.'
-  ]},
-  {version:'3',date:'2026-07-29',changes:[
-    'Ajustes tras la incorporación de PDF.'
-  ]},
-  {version:'2',date:'2026-07-29',changes:[
-    'Motor ΔE2000 en segundo plano (Web Worker).',
-    'Soporte de PDF, .ai y SVG, con selección de PPP.',
-    'Alineación manual por punto de referencia.',
-    'Panel de zonas diferentes.',
-    'Análisis de texto y comparación por palabras (OCR).'
-  ]},
-  {version:'1a',date:'2026-07-29',changes:[
-    'Renombra el archivo principal para publicación.'
-  ]},
-  {version:'1',date:'2026-07-29',changes:[
-    'Aplica el sistema de diseño de marca (color, tipografía) sobre la comparación píxel a píxel original.'
+    'Alineación por hasta 2 puntos de referencia por imagen: corrige escala y giro además de la traslación, y marca las zonas sin contenido comparable de B.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -421,7 +391,7 @@ async function compare(){
   }
 
   const thresh=parseInt(threshSlider.value);
-  const minSizePct=parseFloat(minSizeInput.value)||0.8;
+  const minSizePct=parseFloat(minSizeInput.value)||0.1;
   const bufA=imgAData.data.buffer.slice(0);
   const bufB=imgBData.data.buffer.slice(0);
   if(compareMaskGlobal)neutralizeMaskedPixels(bufB,imgAData.data,compareMaskGlobal);
