@@ -250,6 +250,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .vp-overlay-svg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
 .vp-overlay-svg path{vector-effect:non-scaling-stroke}
 .vp-hover-path{fill:none;stroke:var(--marker);stroke-width:2}
+.vp-debug-boxes{display:none}
+.vp-debug-boxes.on{display:block}
+.vp-debug-box{fill:none;stroke:var(--region-mark);stroke-width:1;stroke-dasharray:3 2;opacity:.65}
+.vp-debug-box.text{stroke:var(--sev-mid)}
 .vp-persistent-outline{fill:none;stroke:var(--accent-gold-deep);stroke-width:2}
 .vp-persistent-outline.pair2{stroke:var(--primary)}
 .vp-anchor-dot{fill:var(--surface);stroke:var(--accent-gold-deep);stroke-width:1.5}
@@ -608,6 +612,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="modal-body">
       <div class="vp-toolbar">
         <label><input type="checkbox" id="vpIncludeText"> Incluir texto trazado</label>
+        <label><input type="checkbox" id="vpDebugBoxes"> Depuración: ver cajas de elementos</label>
         <span class="hint" id="vpFilterStats"></span>
         <span class="hint">Alt + rueda: ciclar elementos superpuestos</span>
       </div>
