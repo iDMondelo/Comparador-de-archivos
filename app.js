@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'15',date:'2026-09-14',changes:[
+    'Entre dos archivos vectoriales (PDF/.ai) la escala queda bloqueada a 1:1 y el giro a 0: solo se calcula el desplazamiento, en puntos PDF, y B se renderiza ya desplazada por PDF.js sin remuestrear el bitmap, con un interruptor para desbloquear la escala si un archivo fue reescalado.',
+    'El lienzo comparado pasa a ser la intersección física de ambas páginas (se muestra en mm y se trama lo que queda fuera en las miniaturas), el PPP queda enlazado entre ambos archivos y la alineación por caja de página avisa cuando los formatos son distintos.'
+  ]},
   {version:'14',date:'2026-09-14',changes:[
     'Retira el soporte de SVG: ya no se puede seleccionar ni arrastrar como formato de entrada, y al intentarlo se muestra un aviso de formato no compatible.'
   ]},
@@ -24,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'11',date:'2026-08-07',changes:[
     'Baja el tamaño mínimo de zona por defecto de 0,8 % a 0,1 % para no descartar cambios pequeños legítimos (letras sueltas, detalles finos).',
     'Ajusta la fusión de regiones cercanas y añade texto de ayuda junto al campo para acompañar el nuevo valor.'
-  ]},
-  {version:'10',date:'2026-08-07',changes:[
-    'Reorganiza el bloque de alineación separando el método vectorial (recomendado) del de puntos manuales, con un aviso según el formato cargado.',
-    'Redondea a dos decimales las coordenadas y los valores de transformación mostrados.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -278,6 +278,28 @@ function updateSimilarityNotes(sim){
   noteBox.style.display='block';
 }
 
+// Notas del modo de escala bloqueada (physical-align.js): traslación pura en
+// puntos, B renderizada ya desplazada (sin remuestreo) y lienzo = intersección
+// física de ambas páginas.
+function updateLockedNotes(res){
+  const t=res.transform;
+  const notes=[];
+  const sizeA=pageSizePt(sourceA),sizeB=pageSizePt(sourceB);
+  notes.push(`Escala bloqueada a 1:1 (ambos archivos declaran dimensiones físicas) · Giro 0° · `+
+    (t.aligned?`Desplazamiento aplicado en el render: ${formatEs(t.dxPt,2)} × ${formatEs(t.dyPt,2)} pt · `:'Sin puntos: páginas superpuestas por el origen · ')+
+    'Sin remuestreo.');
+  notes.push(`Área comparada: ${formatSizeMm({w:res.area.wPt,h:res.area.hPt})} (intersección de ambas páginas${samePageSize(sizeA,sizeB)?'':`: A ${formatSizeMm(sizeA)} · B ${formatSizeMm(sizeB)}`}).`);
+  if(!samePageSize(sizeA,sizeB)&&!t.aligned){
+    notes.push('Aviso: los formatos de página son distintos y no se ha alineado por elemento — solo coincide lo que está en la misma posición respecto al origen de cada página.');
+  }
+  res.warnings.forEach(w=>notes.push('Aviso: '+w));
+  if(res.w*res.h>0&&res.w*res.h<1600){
+    notes.push('Aviso: el área de solapamiento es muy pequeña, las estadísticas pueden no ser representativas.');
+  }
+  noteBox.innerHTML=notes.join('<br>');
+  noteBox.style.display='block';
+}
+
 // ---- worker de cálculo ΔE2000 (de-worker.js) --------------------------------
 
 function getWorker(){
@@ -310,7 +332,9 @@ function onWorkerMessage(e){
     document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
     document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
     document.getElementById('sDEmax').textContent=deMax.toFixed(1);
-    document.getElementById('sAreaCompared').textContent=Math.round(comparedAreaPixels/(cW*cH)*100)+'%';
+    document.getElementById('sAreaCompared').textContent=(reportTransform&&reportTransform.locked)
+      ?formatSizeMm(reportTransform.areaPt)
+      :Math.round(comparedAreaPixels/(cW*cH)*100)+'%';
 
     statsRow.style.display='grid';
     resultsArea.style.display='block';
@@ -350,9 +374,37 @@ async function compare(){
   threshSlider.disabled=true;
 
   const similarityMode=!!(refA&&refB&&refA2&&refB2);
+  const lockedMode=typeof isScaleLockActive==='function'&&isScaleLockActive();
   compareMaskGlobal=null;
 
-  if(similarityMode){
+  if(lockedMode){
+    // Escala bloqueada 1:1 (physical-align.js): traslación pura en puntos,
+    // B renderizada de nuevo ya desplazada, lienzo = intersección de páginas.
+    let res;
+    try{
+      res=await buildLockedAlignedRegion(sourceA,sourceB,refA,refB,refA2,refB2);
+    }catch(err){
+      status.textContent='Error al alinear: '+err.message;
+      btnCompare.disabled=false;
+      threshSlider.disabled=false;
+      return;
+    }
+    if(runId!==currentRunId)return;
+    const t=res.transform;
+    cW=res.w;cH=res.h;
+    imgAData=res.imgAData;imgBData=res.imgBData;
+    comparedAreaPixels=cW*cH;
+    reportRefA=t.aligned?{...refA}:null;
+    reportRefB=t.aligned?{...refB}:null;
+    reportOffset={dx:t.dxPx,dy:t.dyPx};
+    reportTransform={scale:1,thetaDeg:0,locked:true,dxPt:t.dxPt,dyPt:t.dyPt,areaPt:{w:res.area.wPt,h:res.area.hPt}};
+    // rectA/rectB: offsets de cada render completo al lienzo, para que la
+    // pestaña Texto (mapTextRectToCanvas) siga sabiendo saltar al overlay.
+    lastRegion={w:cW,h:cH,aligned:t.aligned,locked:true,dx:t.dxPx,dy:t.dyPx,
+      rectA:{x:res.area.x0,y:res.area.y0},
+      rectB:{x:res.area.x0-t.dxPx,y:res.area.y0-t.dyPx}};
+    updateLockedNotes(res);
+  }else if(similarityMode){
     const sim=buildSimilarityAlignedRegion(sourceA,sourceB,refA,refA2,refB,refB2);
     if(sim.w<=0||sim.h<=0){
       status.textContent='Error: la imagen A no tiene tamaño válido.';
@@ -529,6 +581,9 @@ document.getElementById('btnExportReport').onclick=()=>{
       escala:Number(reportTransform.scale.toFixed(4)),
       giroGrados:Number(reportTransform.thetaDeg.toFixed(2))
     }:null,
+    escalaBloqueada:!!(reportTransform&&reportTransform.locked),
+    desplazamientoPt:(reportTransform&&reportTransform.locked)?{dx:Number(reportTransform.dxPt.toFixed(3)),dy:Number(reportTransform.dyPt.toFixed(3))}:null,
+    areaComparadaMm:(reportTransform&&reportTransform.locked)?{ancho:Number(ptToMm(reportTransform.areaPt.w).toFixed(2)),alto:Number(ptToMm(reportTransform.areaPt.h).toFixed(2))}:null,
     umbralDE:parseInt(threshSlider.value),
     pixelesDiferentes:diffCount,
     porcentajeDiferente:Number(pctDiff.toFixed(2)),

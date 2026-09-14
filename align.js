@@ -21,7 +21,26 @@ const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
 const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
 const alignFormatNoticeEl=document.getElementById('alignFormatNotice');
+const scaleLockRowEl=document.getElementById('scaleLockRow');
+const scaleLockStateEl=document.getElementById('scaleLockState');
+const scaleLockTextEl=document.getElementById('scaleLockText');
+const scaleLockToggleEl=document.getElementById('scaleLockToggle');
 const ALIGN_VECTOR_KINDS=['pdf','ai'];
+
+// Bloqueo de escala (physical-align.js): por defecto activo siempre que ambos
+// archivos declaren dimensiones físicas (PDF/.ai). Se vuelve a bloquear al
+// cargar un archivo nuevo; el usuario solo lo desbloquea si sabe que uno de
+// los archivos fue reescalado.
+let scaleLocked=true;
+
+function scaleLockAvailable(){
+  return typeof hasPhysicalDims==='function'&&hasPhysicalDims(typeof sourceA!=='undefined'?sourceA:null)&&hasPhysicalDims(typeof sourceB!=='undefined'?sourceB:null);
+}
+
+// Consumida por app.js (compare) y vector-picker.js (resumen del picker).
+function isScaleLockActive(){
+  return scaleLocked&&scaleLockAvailable();
+}
 const ALIGN_ZOOM_WIN=28;
 const ALIGN_ZOOM_MAX=40;
 const REF_HIT_RADIUS=14; // px de pantalla, para detectar arrastre sobre una marca ya colocada
@@ -138,11 +157,101 @@ function updateAlignSection(){
     alignSection.style.display='block';
     initAlignCanvas('A',sourceA);
     initAlignCanvas('B',sourceB);
+    scaleLocked=true;
+    if(scaleLockToggleEl)scaleLockToggleEl.checked=false;
+    updateScaleLockUI();
     if(typeof updateVectorPickerEntryVisibility==='function')updateVectorPickerEntryVisibility();
     updateAlignFormatNotice();
+    updateTransformSummary();
+    drawAlignCoverage();
   }else{
     alignSection.style.display='none';
   }
+}
+
+// ---- bloqueo de escala: indicador + interruptor ----------------------------
+
+function updateScaleLockUI(){
+  if(!scaleLockRowEl)return;
+  if(!scaleLockAvailable()){scaleLockRowEl.style.display='none';return;}
+  scaleLockRowEl.style.display='flex';
+  const dpiTxt=(sourceA.dpi===sourceB.dpi)?` · PPP común: ${sourceA.dpi}`:'';
+  if(scaleLocked){
+    scaleLockTextEl.textContent='Escala bloqueada a 1:1 — ambos archivos declaran dimensiones físicas'+dpiTxt;
+    scaleLockStateEl.classList.remove('unlocked');
+  }else{
+    scaleLockTextEl.textContent='Escala desbloqueada — se calculará a partir de los elementos y obligará a remuestrear';
+    scaleLockStateEl.classList.add('unlocked');
+  }
+}
+
+if(scaleLockToggleEl){
+  scaleLockToggleEl.onchange=()=>{
+    scaleLocked=!scaleLockToggleEl.checked;
+    updateScaleLockUI();
+    updateAlignFormatNotice();
+    updateTransformSummary();
+    drawAlignCoverage();
+    if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1])&&!isScaleLockActive());
+  };
+}
+
+// ---- tramado de las miniaturas fuera del área comparable -------------------
+// Con la escala bloqueada, el lienzo de comparación es la intersección de las
+// dos páginas (physical-align.js). Lo que queda fuera en cada archivo se
+// muestra tramado en su miniatura, como "no comparable" — misma trama que
+// drawMaskOverlay (similarity.js) sobre el lienzo de resultados.
+
+let alignStripePatterns={A:null,B:null};
+
+function alignStripePattern(which,ctx,tile){
+  const cached=alignStripePatterns[which];
+  if(cached&&cached.tile===tile)return cached.pattern;
+  const p=document.createElement('canvas');
+  p.width=tile;p.height=tile;
+  const pctx=p.getContext('2d');
+  pctx.strokeStyle='rgba(111,118,122,0.6)';
+  pctx.lineWidth=Math.max(1,tile*0.2);
+  pctx.beginPath();
+  pctx.moveTo(-tile*0.2,tile);pctx.lineTo(tile,-tile*0.2);
+  pctx.moveTo(tile*0.3,tile*1.3);pctx.lineTo(tile*1.3,tile*0.3);
+  pctx.stroke();
+  const pattern=ctx.createPattern(p,'repeat');
+  alignStripePatterns[which]={tile,pattern};
+  return pattern;
+}
+
+function hatchOutsideRect(which,rect){
+  const canvas=alignCanvasEls[which];
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,W,H);
+  ctx.rect(rect.x,rect.y,rect.w,rect.h);
+  ctx.clip('evenodd');
+  ctx.fillStyle='rgba(224,225,222,0.55)';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=alignStripePattern(which,ctx,Math.max(10,Math.round(H/24)));
+  ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+function drawAlignCoverage(){
+  if(!sourceA||!sourceB)return;
+  ['A','B'].forEach(which=>{
+    const canvas=alignCanvasEls[which];
+    if(!canvas.width||!canvas.height)return;
+    const source=which==='A'?sourceA:sourceB;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(source.drawable,0,0);
+  });
+  if(!isScaleLockActive())return;
+  const t=computeLockedTransform(sourceA,sourceB,pointsA[0],pointsB[0],null,null);
+  const area=computeComparableArea(sourceA,sourceB,t.dxPx,t.dyPx);
+  hatchOutsideRect('A',area.rectInA);
+  hatchOutsideRect('B',area.rectInB);
 }
 
 // Aviso específico según el formato de A y B: el método vectorial solo está
@@ -155,8 +264,19 @@ function updateAlignFormatNotice(){
   const bVec=ALIGN_VECTOR_KINDS.includes(sourceB.sourceType);
   let text,cls;
   if(aVec&&bVec){
-    text='Alineación vectorial disponible — máxima precisión';
-    cls='positive';
+    // Alineación por caja de página (page.view = CropBox ∩ MediaBox; TrimBox/
+    // ArtBox no accesibles en PDF.js 4.10): con la escala bloqueada, dos
+    // cajas del mismo tamaño físico se alinean por su origen sin escala. Si
+    // difieren, no se fuerza la coincidencia: se avisa y se ofrece el
+    // elemento vectorial.
+    const sizeA=pageSizePt(sourceA),sizeB=pageSizePt(sourceB);
+    if(samePageSize(sizeA,sizeB)){
+      text=`Alineación vectorial disponible — máxima precisión · Página de ${formatSizeMm(sizeA)} en ambos archivos: alineadas por el origen, sin escala`;
+      cls='positive';
+    }else{
+      text=`Formatos de página distintos: A ${formatSizeMm(sizeA)} · B ${formatSizeMm(sizeB)}. No se fuerza la coincidencia: sin puntos se comparan superpuestas por el origen; para comparar el arte, alinea por elemento vectorial.`;
+      cls='warn-strong';
+    }
   }else if(aVec!==bVec){
     text='Comparando un formato vectorial con uno ráster: la comparación es posible pero menos fiable. Si puedes, exporta ambos al mismo formato y resolución.';
     cls='warn';
@@ -229,11 +349,27 @@ function formatEs(n,decimals){
 }
 
 function updateTransformSummary(){
-  if(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]){
+  const full=!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]);
+  if(isScaleLockActive()&&pointsA[0]&&pointsB[0]){
+    // Escala bloqueada: traslación pura calculada en puntos (physical-align.js).
+    const t=computeLockedTransform(sourceA,sourceB,pointsA[0],pointsB[0],pointsA[1],pointsB[1]);
+    alignTransformSummaryEl.textContent=formatLockedTransform(t);
+    alignTransformSummaryEl.style.display='block';
+    if(t.warnings.length){
+      alignTransformWarnEl.textContent='Aviso: '+t.warnings.join(' ');
+      alignTransformWarnEl.style.display='block';
+    }else{
+      alignTransformWarnEl.style.display='none';
+    }
+  }else if(full){
     const t=computeSimilarityTransform(pointsA[0],pointsA[1],pointsB[0],pointsB[1]);
     alignTransformSummaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${formatEs(t.offset.dx,2)}, ${formatEs(t.offset.dy,2)} px`;
     alignTransformSummaryEl.style.display='block';
     const warns=transformWarnings(t.scale,t.thetaDeg,null);
+    if(scaleLockAvailable()){
+      const noise=unlockedNoiseWarning(t.scale);
+      if(noise)warns.push(noise);
+    }
     if(warns.length){
       alignTransformWarnEl.textContent='Aviso: '+warns.join(' ');
       alignTransformWarnEl.style.display='block';
@@ -271,7 +407,10 @@ function refreshAfterPointsChange(which){
   updateTransformSummary();
   activeAlignMethod=(pointsA[0]||pointsB[0])?'manual':'pagebox';
   updateAlignMethodBadge();
-  if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1]));
+  drawAlignCoverage();
+  // Con la escala bloqueada no hay remuestreo, así que no procede subir el
+  // umbral ΔE por "ruido de alineación".
+  if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(!!(pointsA[0]&&pointsA[1]&&pointsB[0]&&pointsB[1])&&!isScaleLockActive());
 }
 
 // Llamado desde vector-picker.js al confirmar la selección de elemento
@@ -482,6 +621,7 @@ function resetRefPoints(){
   updateTransformSummary();
   activeAlignMethod=(typeof sourceA!=='undefined'&&sourceA&&typeof sourceB!=='undefined'&&sourceB)?'pagebox':'none';
   updateAlignMethodBadge();
+  if(typeof sourceA!=='undefined'&&sourceA&&typeof sourceB!=='undefined'&&sourceB)drawAlignCoverage();
   if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(false);
 }
 document.getElementById('btnResetRef').onclick=resetRefPoints;

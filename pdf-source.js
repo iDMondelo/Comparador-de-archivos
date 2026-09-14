@@ -87,6 +87,23 @@ async function renderPdfPageToCanvas(pdfDoc,pageNum,dpi,label){
   return{drawable:canvas,naturalWidth:canvas.width,naturalHeight:canvas.height,viewport,dpi};
 }
 
+// Render alineado (escala bloqueada, ver physical-align.js): la misma página
+// al mismo PPP pero con el desplazamiento incorporado al viewport
+// (offsetX/offsetY se suman en espacio de píxel tras escala y giro), sobre un
+// canvas del tamaño del lienzo comparado. PDF.js resuelve un desplazamiento
+// no entero en el propio rasterizado, con el mismo antialiasing que el
+// render de A — nada de interpolar un bitmap ya rasterizado. Mismos
+// parámetros de render que renderPdfPageToCanvas, deliberadamente.
+async function renderPdfPageAligned(source,dpi,offsetPx,w,h){
+  const page=await source.pdfDoc.getPage(source.pageNum);
+  const viewport=page.getViewport({scale:dpi/72,offsetX:offsetPx.x,offsetY:offsetPx.y});
+  checkRenderSize(w,h);
+  const canvas=document.createElement('canvas');
+  canvas.width=w;canvas.height=h;
+  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  return canvas;
+}
+
 // Punto de entrada para todo lo que no es PDF/.ai: raster (usa loadImg ya
 // existente, sin cambios).
 async function loadRaster(file){
@@ -130,9 +147,23 @@ function populatePdfControls(which,source){
 }
 
 // Cambiar DPI o página vuelve a renderizar esa fuente (no recompara sola;
-// el usuario sigue pulsando "Comparar").
+// el usuario sigue pulsando "Comparar"). Cuando AMBOS archivos son
+// vectoriales, el PPP queda enlazado: cambiarlo en uno re-renderiza los dos
+// al mismo valor, para que compartan escala física por construcción (ver
+// physical-align.js).
 function setupPdfControls(which){
-  dpiSelectEls[which].onchange=()=>rerenderPdfSource(which,{dpi:parseInt(dpiSelectEls[which].value)});
+  dpiSelectEls[which].onchange=async()=>{
+    const dpi=parseInt(dpiSelectEls[which].value);
+    const other=which==='A'?'B':'A';
+    const thisSource=which==='A'?sourceA:sourceB;
+    const otherSource=other==='A'?sourceA:sourceB;
+    const linked=!!(thisSource&&thisSource.pdfDoc&&otherSource&&otherSource.pdfDoc);
+    await rerenderPdfSource(which,{dpi});
+    if(linked&&otherSource.dpi!==dpi){
+      dpiSelectEls[other].value=String(dpi);
+      await rerenderPdfSource(other,{dpi});
+    }
+  };
   pageSelectEls[which].onchange=()=>rerenderPdfSource(which,{pageNum:parseInt(pageSelectEls[which].value)});
 }
 setupPdfControls('A');
