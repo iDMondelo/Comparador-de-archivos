@@ -168,7 +168,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .align-transform-summary{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-1) 0;display:none}
 .align-transform-warn{font-size:var(--caption-size);color:var(--accent-gold-deep);margin:0 0 var(--space-2);display:none}
 
-/* ---- capa de entrada PDF/.ai/.svg: selector de PPP/página ---- */
+/* ---- capa de entrada PDF/.ai: selector de PPP/página ---- */
 .pdf-controls{display:none;flex-wrap:wrap;gap:var(--space-2) var(--space-3);align-items:center;margin-top:var(--space-2);font-size:var(--caption-size);color:var(--ink-dim)}
 .pdf-controls label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .pdf-controls select{border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-ui);font-size:12px;color:var(--ink);background:var(--surface)}
@@ -318,7 +318,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </div>
     <div class="app-sub">
       <span>Comparación píxel a píxel</span>
-      <span class="app-sub-formats">// PDF · AI · SVG · JPG · PNG</span>
+      <span class="app-sub-formats">// PDF · AI · JPG · PNG</span>
     </div>
   </div>
 </div>
@@ -327,7 +327,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div>
     <div class="field-label">Imagen A — original</div>
     <div class="drop-zone" id="dropA">
-      <input type="file" accept=".pdf,.ai,.svg,image/*" id="fileA">
+      <input type="file" accept=".pdf,.ai,image/*" id="fileA">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
       <div class="name" id="nameA">ningún archivo</div>
@@ -356,7 +356,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div>
     <div class="field-label">Imagen B — MODIFICADO</div>
     <div class="drop-zone" id="dropB">
-      <input type="file" accept=".pdf,.ai,.svg,image/*" id="fileB">
+      <input type="file" accept=".pdf,.ai,image/*" id="fileB">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
       <div class="name" id="nameB">ningún archivo</div>
@@ -390,7 +390,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="align-method align-method-recommended">
     <div class="align-method-label">Método recomendado</div>
     <button class="action" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear por elemento vectorial…</button>
-    <p class="align-method-desc">Precisión exacta: se ancla a la geometría real del archivo. Disponible en PDF, .AI y SVG.</p>
+    <p class="align-method-desc">Precisión exacta: se ancla a la geometría real del archivo. Disponible en PDF y .AI.</p>
   </div>
   <div class="align-method align-method-alt">
     <div class="align-method-label">Método alternativo</div>
@@ -548,7 +548,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <p>Al comparar dos archivos digitales, cualquier diferencia es un cambio real: no hay proceso de impresión que introduzca variación. Por eso la recomendación es trabajar con el umbral en <strong>1</strong>, para que no se te escape nada — incluidos los cambios de tinta que a simple vista no se aprecian.</p>
         <p>El umbral existe para filtrar el ruido que introducen los propios archivos, no para descartar cambios pequeños:</p>
         <ul>
-          <li><strong>Umbral 1</strong> — Recomendado. PNG, PDF y SVG, sin alineación aplicada. Detecta todo.</li>
+          <li><strong>Umbral 1</strong> — Recomendado. PNG y PDF, sin alineación aplicada. Detecta todo.</li>
           <li><strong>Umbral 2-3</strong> — Con JPG, cuya compresión genera diferencias falsas, o cuando hay transformación de alineación activa y el remuestreo produce ruido en los bordes.</li>
           <li><strong>Umbral 5 o más</strong> — Solo si quieres localizar únicamente los cambios grandes e ignorar los matices.</li>
         </ul>
@@ -561,7 +561,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <div class="help-body">
         <p>Si las dos versiones tienen distinto tamaño, resolución o están giradas, marca los puntos de referencia antes de comparar — si no, la herramienta marcará la imagen entera como diferente.</p>
         <p>Marca el mismo punto físico del artwork en A y en B. Conviene poner los dos puntos lo más separados posible entre sí, para que el cálculo de escala y giro sea más preciso.</p>
-        <p>Los archivos vectoriales (PDF, .AI, SVG) son los mejores para comparar: la alineación se calcula sobre la geometría real del archivo y el resultado es exacto.</p>
+        <p>Los archivos vectoriales (PDF, .AI) son los mejores para comparar: la alineación se calcula sobre la geometría real del archivo y el resultado es exacto.</p>
         <p>Con imágenes ráster (JPG, PNG) la alineación depende de la precisión al marcar los puntos, y si las dos imágenes no tienen el mismo tamaño de página y resolución, el reescalado genera diferencias en los bordes que no corresponden a cambios del diseño.</p>
         <p>Si puedes elegir, pide las dos versiones en PDF. Si solo tienes imágenes, procura que estén exportadas al mismo tamaño y resolución.</p>
       </div>
@@ -569,7 +569,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <details class="help-item">
       <summary>Formatos admitidos<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
-        <p>PDF, .ai, SVG, JPG y PNG.</p>
+        <p>PDF, .ai, JPG y PNG. El formato SVG no es compatible.</p>
         <p>En archivos PDF puedes elegir la resolución de análisis (PPP), y la herramienta detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
       </div>
     </details>

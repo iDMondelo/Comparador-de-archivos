@@ -21,7 +21,7 @@ const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
 const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
 const alignFormatNoticeEl=document.getElementById('alignFormatNotice');
-const ALIGN_VECTOR_KINDS=['pdf','ai','svg'];
+const ALIGN_VECTOR_KINDS=['pdf','ai'];
 const ALIGN_ZOOM_WIN=28;
 const ALIGN_ZOOM_MAX=40;
 const REF_HIT_RADIUS=14; // px de pantalla, para detectar arrastre sobre una marca ya colocada
@@ -146,7 +146,7 @@ function updateAlignSection(){
 }
 
 // Aviso específico según el formato de A y B: el método vectorial solo está
-// disponible para PDF/.AI/SVG, así que el mensaje debe reflejar de entrada
+// disponible para PDF/.AI, así que el mensaje debe reflejar de entrada
 // si el usuario ya está en el mejor escenario o si el resultado dependerá
 // de la puntería/resolución.
 function updateAlignFormatNotice(){

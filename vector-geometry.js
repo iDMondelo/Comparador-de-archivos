@@ -1,5 +1,5 @@
 // ============================================================================
-// vector-geometry.js — extracción de geometría vectorial (SVG y PDF/.ai),
+// vector-geometry.js — extracción de geometría vectorial (PDF/.ai),
 // índice espacial para hit-testing, heurística de texto trazado y cálculo de
 // transformación con 1 elemento. Capa de entrada pura: no toca el motor ΔE,
 // no depende de align.js/app.js/vector-picker.js — solo lee el `source`
@@ -15,19 +15,20 @@ function pxToMm(px,dpi,userUnit){
   return px/(dpi||300)*25.4*(userUnit||1);
 }
 
-// Factor SVG (96dpi, "user units") -> px del render (dpi elegido). Compartido
-// con renderSvgToCanvas en pdf-source.js para que ambos lados nunca diverjan.
+// Factor 96dpi ("user units") -> px del render (dpi elegido). Usado por la
+// heurística de texto trazado (classifyOutlinedText) para escalar sus
+// umbrales de altura al dpi de render actual.
 function svgDpiScale(dpi){
   return (dpi||300)/96;
 }
 
 function isVectorGeometryAvailable(source){
-  return !!source&&(source.sourceType==='svg'||source.sourceType==='pdf'||source.sourceType==='ai');
+  return !!source&&(source.sourceType==='pdf'||source.sourceType==='ai');
 }
 
 // ---- firma de forma común (ángulos/longitudes normalizados) ---------------
 // `pts` es una polilínea ya en espacio de píxel; si `isClosed`, el último
-// punto debe repetir al primero (mismo convenio en SVG y PDF más abajo).
+// punto debe repetir al primero (mismo convenio que usa el PDF más abajo).
 function computePolylineSignatureData(pts,isClosed){
   const n=pts.length;
   const segLens=[];
@@ -76,192 +77,6 @@ function computeMultiSubpathSignatureData(subpaths){
     angles:perSub.flatMap(s=>s.angles),
     segLengths:perSub.flatMap(s=>totalPerimeter>0?s.segLens.map(l=>l/totalPerimeter):s.segLens.map(()=>0))
   };
-}
-
-// ---- extracción SVG ---------------------------------------------------
-// El render de comparación sigue rasterizando el SVG a <img> (renderSvgToCanvas
-// en pdf-source.js) — eso no cambia. Para el picker se monta el SVG inline por
-// separado (oculto, visibility:hidden, tamaño = el mismo natural/dpi que ya usa
-// el render), únicamente para poder leer getBBox()/getScreenCTM().
-
-// El contenido de <use> vive en un shadow tree de UA no scriptable
-// (use.shadowRoot es null; las interfaces SVGElementInstance de SVG 1.1
-// están retiradas de los navegadores actuales), así que no se puede recorrer
-// para leer getScreenCTM(). Se expande cada <use> "vivo" a un <g> con el
-// contenido referenciado clonado a DOM real antes de indexar, para que el
-// selector de shapes normal lo recoja sin más cambios.
-function vgResolveUseElements(mounted){
-  const SVGNS='http://www.w3.org/2000/svg';
-  let guard=0;
-  while(guard++<500){
-    const uses=Array.from(mounted.querySelectorAll('use'))
-      .filter(u=>!u.closest('defs,symbol,clipPath,mask,pattern'));
-    if(!uses.length)break;
-    for(const use of uses){
-      const href=use.getAttribute('href')||use.getAttributeNS('http://www.w3.org/1999/xlink','href')||'';
-      if(!href.startsWith('#')){use.remove();continue;}
-      let target=null;
-      try{target=mounted.querySelector('#'+CSS.escape(href.slice(1)));}catch(e){}
-      if(!target||target===use||target.contains(use)){use.remove();continue;}
-
-      const clone=target.cloneNode(true);
-      clone.removeAttribute('id');
-      clone.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
-
-      let content=clone;
-      if(clone.tagName.toLowerCase()==='symbol'){
-        const svgWrap=document.createElementNS(SVGNS,'svg');
-        for(const a of['viewBox','preserveAspectRatio']){
-          if(clone.hasAttribute(a))svgWrap.setAttribute(a,clone.getAttribute(a));
-        }
-        svgWrap.setAttribute('width',use.getAttribute('width')||clone.getAttribute('width')||'100%');
-        svgWrap.setAttribute('height',use.getAttribute('height')||clone.getAttribute('height')||'100%');
-        while(clone.firstChild)svgWrap.appendChild(clone.firstChild);
-        content=svgWrap;
-      }
-
-      const x=(use.x&&use.x.baseVal?use.x.baseVal.value:0)||0;
-      const y=(use.y&&use.y.baseVal?use.y.baseVal.value:0)||0;
-      const outer=document.createElementNS(SVGNS,'g');
-      const useTf=use.getAttribute('transform')||'';
-      outer.setAttribute('transform',(useTf+` translate(${x},${y})`).trim());
-      outer.appendChild(content);
-      use.replaceWith(outer);
-    }
-  }
-}
-
-async function extractSvgGeometry(source){
-  const text=await source.file.text();
-  const svgDoc=new DOMParser().parseFromString(text,'image/svg+xml');
-  const svgRoot=svgDoc.documentElement;
-  if(!svgRoot||svgRoot.nodeName!=='svg'||svgDoc.querySelector('parsererror')){
-    throw new Error('SVG inválido o con errores de parseo');
-  }
-
-  const scale=svgDpiScale(source.dpi); // mismo factor que renderSvgToCanvas
-  const cssW=source.naturalWidth/scale,cssH=source.naturalHeight/scale;
-
-  const container=document.createElement('div');
-  container.style.cssText=`position:fixed;left:0;top:0;width:${cssW}px;height:${cssH}px;visibility:hidden;pointer-events:none;z-index:-1;overflow:hidden;`;
-  document.body.appendChild(container);
-
-  const elements=[];
-  try{
-    const mounted=document.importNode(svgRoot,true);
-    mounted.setAttribute('width','100%');
-    mounted.setAttribute('height','100%');
-    container.appendChild(mounted);
-    vgResolveUseElements(mounted);
-
-    const nodes=Array.from(mounted.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line'))
-      .filter(el=>!el.closest('defs,symbol,clipPath,mask,pattern'));
-
-    let nextId=0;
-    for(const el of nodes){
-      try{
-        const shapeEl=buildSvgElement(el,nextId,scale);
-        if(shapeEl){elements.push(shapeEl);nextId++;}
-      }catch(e){/* elemento puntual con geometría degenerada — se ignora, no bloquea el resto */}
-    }
-  }finally{
-    container.remove();
-  }
-  return elements;
-}
-
-function buildSvgElement(el,id,scale){
-  const ctm=el.getScreenCTM();
-  if(!ctm)return null;
-  const tag=el.tagName.toLowerCase();
-  const tf=(x,y)=>{
-    const p=new DOMPoint(x,y).matrixTransform(ctm);
-    return[p.x*scale,p.y*scale];
-  };
-
-  let pts=null,isClosed=false,subBuild=null;
-  if(tag==='path'){
-    const dAttr=(el.getAttribute('d')||'').trim();
-    if(!dAttr)return null;
-    // Un <path> puede traer varios subpaths (M...Z M...Z...) — típico de
-    // texto trazado y de letras con agujero ("O","A","e"). Medir cada
-    // subpath por separado evita conectar el final de uno con el inicio del
-    // siguiente con una línea recta espuria.
-    const rawSubs=dAttr.match(/[Mm][^Mm]*/g)||[dAttr];
-    const tmp=document.createElementNS('http://www.w3.org/2000/svg','path');
-    el.parentNode.insertBefore(tmp,el);
-    subBuild=[];
-    for(const subD of rawSubs){
-      tmp.setAttribute('d',subD);
-      let len=0;
-      try{len=tmp.getTotalLength();}catch(e){len=0;}
-      if(!(len>0))continue;
-      const N=Math.max(8,Math.min(64,Math.round(len/3)));
-      const localPts=[];
-      for(let i=0;i<=N;i++){
-        const lp=tmp.getPointAtLength(len*i/N);
-        localPts.push(tf(lp.x,lp.y));
-      }
-      const subClosed=/[Zz]\s*$/.test(subD)||Math.hypot(localPts[0][0]-localPts[localPts.length-1][0],localPts[0][1]-localPts[localPts.length-1][1])<0.5;
-      subBuild.push({pts:localPts,isClosed:subClosed});
-    }
-    tmp.remove();
-    if(!subBuild.length)return null;
-    pts=subBuild.flatMap(sp=>sp.pts);
-    isClosed=subBuild.every(sp=>sp.isClosed);
-  }else if(tag==='rect'){
-    const x=parseFloat(el.getAttribute('x'))||0,y=parseFloat(el.getAttribute('y'))||0;
-    const w=parseFloat(el.getAttribute('width'))||0,h=parseFloat(el.getAttribute('height'))||0;
-    if(w<=0||h<=0)return null;
-    pts=[tf(x,y),tf(x+w,y),tf(x+w,y+h),tf(x,y+h),tf(x,y)];
-    isClosed=true;
-  }else if(tag==='circle'||tag==='ellipse'){
-    const cx=parseFloat(el.getAttribute('cx'))||0,cy=parseFloat(el.getAttribute('cy'))||0;
-    const rx=tag==='circle'?(parseFloat(el.getAttribute('r'))||0):(parseFloat(el.getAttribute('rx'))||0);
-    const ry=tag==='circle'?rx:(parseFloat(el.getAttribute('ry'))||0);
-    if(rx<=0||ry<=0)return null;
-    const N=32;
-    pts=[];
-    for(let i=0;i<=N;i++){
-      const a=i/N*Math.PI*2;
-      pts.push(tf(cx+rx*Math.cos(a),cy+ry*Math.sin(a)));
-    }
-    isClosed=true;
-  }else if(tag==='polygon'||tag==='polyline'){
-    const raw=(el.getAttribute('points')||'').trim().split(/[\s,]+/).filter(Boolean).map(Number);
-    pts=[];
-    for(let i=0;i+1<raw.length;i+=2)pts.push(tf(raw[i],raw[i+1]));
-    if(pts.length<2)return null;
-    isClosed=tag==='polygon';
-    if(isClosed)pts.push(pts[0]);
-  }else if(tag==='line'){
-    const x1=parseFloat(el.getAttribute('x1'))||0,y1=parseFloat(el.getAttribute('y1'))||0;
-    const x2=parseFloat(el.getAttribute('x2'))||0,y2=parseFloat(el.getAttribute('y2'))||0;
-    pts=[tf(x1,y1),tf(x2,y2)];
-    isClosed=false;
-  }else{
-    return null;
-  }
-  if(!pts||pts.length<2)return null;
-
-  const bbox=boundsOfPoints(pts);
-  if(bbox.w<=0&&bbox.h<=0)return null;
-
-  const multi=!!(subBuild&&subBuild.length>1);
-  const d=multi?subBuild.map(sp=>pointsToPathD(sp.pts,sp.isClosed)).join(''):pointsToPathD(pts,isClosed);
-  const{angles,segLengths}=multi?computeMultiSubpathSignatureData(subBuild):computePolylineSignatureData(pts,isClosed);
-  const nodeCount=multi?subBuild.reduce((s,sp)=>s+sp.pts.length-(sp.isClosed?1:0),0):pts.length-(isClosed?1:0);
-  const result={
-    id,kind:'svg',bbox,
-    center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
-    nodeCount,isClosed,
-    angles,segLengths,
-    aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
-    isLikelyOutlinedText:false,isRealText:false,
-    d,pts
-  };
-  if(multi)result.subpaths=subBuild.map(sp=>({bbox:boundsOfPoints(sp.pts),nodeCount:sp.pts.length-(sp.isClosed?1:0),isClosed:sp.isClosed}));
-  return result;
 }
 
 function boundsOfPoints(pts){
@@ -369,8 +184,8 @@ function forceCloseSubpath(sp){
 }
 
 // Un elemento PDF puede agrupar varios subtrazados (letra con agujero, un
-// `Do` que dibuja de una vez toda una palabra) — mismo patrón que ya usa
-// buildSvgElement, para que ambos lados indexen "un path = un elemento".
+// `Do` que dibuja de una vez toda una palabra), para indexar "un path = un
+// elemento".
 function buildPdfElement(id,subpaths,isTextFlag){
   const multi=subpaths.length>1;
   const pts=multi?subpaths.flatMap(sp=>sp.pts):subpaths[0].pts;
@@ -724,10 +539,7 @@ async function buildVectorIndex(source,opts){
   }
   let elements;
   let pdfStats=null;
-  if(source.sourceType==='svg'){
-    elements=await extractSvgGeometry(source);
-    if(onProgress)onProgress({done:1,total:1});
-  }else if(source.sourceType==='pdf'||source.sourceType==='ai'){
+  if(source.sourceType==='pdf'||source.sourceType==='ai'){
     const pathResult=await extractPdfGeometry(source.pdfDoc,source.pageNum,source.viewport,{onProgress,signal});
     let textElements=[];
     try{

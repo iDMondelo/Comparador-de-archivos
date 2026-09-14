@@ -1,5 +1,5 @@
 // ============================================================================
-// app.js — orquestación general: ciclo de vida de archivos (raster/PDF/SVG),
+// app.js — orquestación general: ciclo de vida de archivos (raster/PDF/.ai),
 // pestañas, comparación, exportación. Capa de entrada/presentación; el único
 // contacto con el motor es enviarle ImageData y recibir sus resultados.
 // ============================================================================
@@ -10,6 +10,9 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'14',date:'2026-09-14',changes:[
+    'Retira el soporte de SVG: ya no se puede seleccionar ni arrastrar como formato de entrada, y al intentarlo se muestra un aviso de formato no compatible.'
+  ]},
   {version:'13',date:'2026-09-14',changes:[
     'Corrige la geometría vectorial de PDF/.ai: ahora sigue la matriz de los Form XObject anidados (evita desplazamientos), traza las curvas Bézier reales en vez de aproximarlas con líneas rectas, y agrupa los trazados con varios subtrazados en un solo elemento.',
     'El indexado ya no crea elementos fantasma a partir de trazados usados solo como recorte, descarta geometría fuera del recorte activo, y suma el texto vivo del PDF como elemento seleccionable.'
@@ -25,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'10',date:'2026-08-07',changes:[
     'Reorganiza el bloque de alineación separando el método vectorial (recomendado) del de puntos manuales, con un aviso según el formato cargado.',
     'Redondea a dos decimales las coordenadas y los valores de transformación mostrados.'
-  ]},
-  {version:'9',date:'2026-08-06',changes:[
-    'Añade un método de alineación por elemento vectorial, con emparejado automático entre archivos y verificación visual antes de aplicar.',
-    'Suma indicador del método activo y ajuste fino de puntos con el teclado.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -79,7 +78,7 @@ function loadImg(file){
   });
 }
 
-// ---- ciclo de vida de archivos (raster / PDF / .ai / SVG) ------------------
+// ---- ciclo de vida de archivos (raster / PDF / .ai) ------------------------
 
 async function handleFileSelected(file,which){
   if(!file)return;
@@ -89,6 +88,7 @@ async function handleFileSelected(file,which){
   status.textContent='Cargando…';
   try{
     const kind=detectSourceKind(file);
+    if(kind==='svg')throw new Error('El formato SVG no es compatible. Usa PDF, .ai, JPG o PNG.');
     let source;
     if(kind==='pdf'||kind==='ai'){
       const{pdfDoc,pageCount}=await openPdf(file);
@@ -96,7 +96,7 @@ async function handleFileSelected(file,which){
       const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi,file.name);
       source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false};
     }else{
-      const rendered=await loadRasterOrSvg(file,300);
+      const rendered=await loadRaster(file);
       source={...rendered,file};
     }
     if(prevSource){
@@ -220,7 +220,7 @@ document.getElementById('btnReset').onclick=resetAll;
 // ---- geometría de alineación y extracción de píxeles -----------------------
 // (misma lógica que el archivo original; solo cambia `img.naturalWidth` /
 // `drawImage(img,...)` por la fuente normalizada `{drawable, naturalWidth,
-// naturalHeight}` que ahora puede venir de un render PDF/SVG.)
+// naturalHeight}` que ahora puede venir de un render PDF.)
 
 function computeAlignedRegion(){
   let dx=0,dy=0;

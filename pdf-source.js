@@ -1,6 +1,6 @@
 // ============================================================================
-// pdf-source.js — CAPA DE ENTRADA: acepta PDF, .ai (PDF-compatible) y .svg
-// además de JPG/PNG. Renderiza a canvas y expone siempre el mismo objeto
+// pdf-source.js — CAPA DE ENTRADA: acepta PDF y .ai (PDF-compatible) además
+// de JPG/PNG. Renderiza a canvas y expone siempre el mismo objeto
 // normalizado {drawable, naturalWidth, naturalHeight} que ya consumía el
 // resto de la herramienta con HTMLImageElement — no toca el motor de
 // comparación, que solo ve ImageData igual que antes.
@@ -87,43 +87,9 @@ async function renderPdfPageToCanvas(pdfDoc,pageNum,dpi,label){
   return{drawable:canvas,naturalWidth:canvas.width,naturalHeight:canvas.height,viewport,dpi};
 }
 
-// Rasteriza un SVG a canvas al DPI elegido (el navegador lo pinta a su
-// tamaño intrínseco en px CSS, equivalente a 96ppp; se reescala al DPI
-// objetivo para tener la misma resolución de trabajo que un PDF).
-function renderSvgToCanvas(file,dpi){
-  return new Promise((resolve,reject)=>{
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{
-      const scale=svgDpiScale(dpi);
-      const w=Math.round((img.naturalWidth||img.width)*scale);
-      const h=Math.round((img.naturalHeight||img.height)*scale);
-      try{
-        checkRenderSize(w,h);
-      }catch(err){
-        URL.revokeObjectURL(url);
-        reject(err);
-        return;
-      }
-      const canvas=document.createElement('canvas');
-      canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      URL.revokeObjectURL(url);
-      resolve({drawable:canvas,naturalWidth:w,naturalHeight:h,dpi});
-    };
-    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('no se pudo cargar el SVG'));};
-    img.src=url;
-  });
-}
-
 // Punto de entrada para todo lo que no es PDF/.ai: raster (usa loadImg ya
-// existente, sin cambios) o SVG (rasterizado arriba).
-async function loadRasterOrSvg(file,dpi){
-  const kind=detectSourceKind(file);
-  if(kind==='svg'){
-    const r=await renderSvgToCanvas(file,dpi);
-    return{...r,sourceType:'svg'};
-  }
+// existente, sin cambios).
+async function loadRaster(file){
   const img=await loadImg(file);
   return{drawable:img,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,sourceType:'raster',_objectUrl:img._objectUrl};
 }
