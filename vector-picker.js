@@ -477,11 +477,25 @@ function vpUpdateTransformSummary(){
   const summaryEl=vpEl('vpTransformSummary'),warnEl=vpEl('vpTransformWarn');
   const pts=vpFinalPoints();
   if(!pts.A1||!pts.B1){summaryEl.style.display='none';warnEl.style.display='none';return;}
+  // Escala bloqueada (physical-align.js): la escala/giro medidos con las
+  // cajas solo se muestran como dato; la transformación real es traslación.
+  if(typeof isScaleLockActive==='function'&&isScaleLockActive()){
+    const t=computeLockedTransform(sourceA,sourceB,pts.A1,pts.B1,pts.A2,pts.B2);
+    summaryEl.textContent=formatLockedTransform(t);
+    summaryEl.style.display='block';
+    if(t.warnings.length){warnEl.textContent='Aviso: '+t.warnings.join(' ');warnEl.style.display='block';}
+    else warnEl.style.display='none';
+    return;
+  }
   if(pts.A2&&pts.B2){
     const t=computeSimilarityTransform(pts.A1,pts.A2,pts.B1,pts.B2);
     summaryEl.textContent=`Escala: ${formatEs(t.scale,3)}× · Giro: ${formatEs(t.thetaDeg,1)}° · Desplazamiento: ${formatEs(t.offset.dx,2)}, ${formatEs(t.offset.dy,2)} px`;
     summaryEl.style.display='block';
     const warns=transformWarnings(t.scale,t.thetaDeg,null);
+    if(typeof unlockedNoiseWarning==='function'&&typeof hasPhysicalDims==='function'&&hasPhysicalDims(sourceA)&&hasPhysicalDims(sourceB)){
+      const noise=unlockedNoiseWarning(t.scale);
+      if(noise)warns.push(noise);
+    }
     if(warns.length){warnEl.textContent='Aviso: '+warns.join(' ');warnEl.style.display='block';}
     else warnEl.style.display='none';
   }else{
