@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'13',date:'2026-09-14',changes:[
+    'Corrige la geometría vectorial de PDF/.ai: ahora sigue la matriz de los Form XObject anidados (evita desplazamientos), traza las curvas Bézier reales en vez de aproximarlas con líneas rectas, y agrupa los trazados con varios subtrazados en un solo elemento.',
+    'El indexado ya no crea elementos fantasma a partir de trazados usados solo como recorte, descarta geometría fuera del recorte activo, y suma el texto vivo del PDF como elemento seleccionable.'
+  ]},
   {version:'12',date:'2026-08-08',changes:[
     'Corrige el resaltado del selector de elemento de alineación: los trazados con varios subtrazados (letras con agujero, texto convertido a trazado) ya no se dibujan con diagonales espurias entre ellos.',
     'El contador de texto trazado detecta ahora también los casos agrupados en un solo trazado, y los elementos referenciados con <use> pasan a ser seleccionables. Añade un modo de depuración para ver superpuestas las cajas de todos los elementos indexados.'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'9',date:'2026-08-06',changes:[
     'Añade un método de alineación por elemento vectorial, con emparejado automático entre archivos y verificación visual antes de aplicar.',
     'Suma indicador del método activo y ajuste fino de puntos con el teclado.'
-  ]},
-  {version:'8',date:'2026-07-30',changes:[
-    'Añade ayuda plegable en la pantalla inicial y el historial de versiones.',
-    'Cambia el umbral ΔE por defecto de 5 a 1, con sugerencia automática a 2 ante JPG o alineación con escala/giro.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;

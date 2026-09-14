@@ -87,8 +87,8 @@ async function vpBuildIndexes(){
   vpBuildAbortCtrl=new AbortController();
   const signal=vpBuildAbortCtrl.signal;
   try{
-    vpIndexA=await buildVectorIndex(sourceA,{signal,onProgress:p=>{progressText.textContent=`Analizando A… ${Math.round(p.done/p.total*100)}%`;}});
-    vpIndexB=await buildVectorIndex(sourceB,{signal,onProgress:p=>{progressText.textContent=`Analizando B… ${Math.round(p.done/p.total*100)}%`;}});
+    vpIndexA=await buildVectorIndex(sourceA,{signal,label:'A',onProgress:p=>{progressText.textContent=`Analizando A… ${Math.round(p.done/p.total*100)}%`;}});
+    vpIndexB=await buildVectorIndex(sourceB,{signal,label:'B',onProgress:p=>{progressText.textContent=`Analizando B… ${Math.round(p.done/p.total*100)}%`;}});
   }catch(err){
     if(err&&err.aborted){closeVectorPicker();return;}
     progressEl.style.display='none';
@@ -200,8 +200,8 @@ function vpRenderHoverHighlight(which,e){
   }
   hoverPath.setAttribute('d',active.d);
   const source=which==='A'?sourceA:sourceB;
-  const wMm=formatEs(pxToMm(active.bbox.w,source.dpi),1);
-  const hMm=formatEs(pxToMm(active.bbox.h,source.dpi),1);
+  const wMm=formatEs(pxToMm(active.bbox.w,source.dpi,source.userUnit),1);
+  const hMm=formatEs(pxToMm(active.bbox.h,source.dpi,source.userUnit),1);
   const kindLabel=active.isRealText?'texto vivo':(active.isLikelyOutlinedText?'texto trazado (probable)':(active.kind==='pdf-path'?'trazado PDF':'forma SVG'));
   label.textContent=`${wMm}×${hMm} mm · ${active.nodeCount} nodos · ${kindLabel}`+(hits.length>1?` · ${vpHoverCycleIdx[which]+1}/${hits.length} (Alt+rueda)`:'');
   label.style.display='block';
