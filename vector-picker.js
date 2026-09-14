@@ -24,6 +24,7 @@ let vpAnchorNodeIdx={A:null,B:null};
 let vpAnchorNodeIdx2={A:null,B:null};
 let vpNodePickActive={A:false,B:false};
 let vpIncludeOutlinedText=false;
+let vpDebugBoxesOn=false;
 let vpActivePair=1;
 let vpBuildAbortCtrl=null;
 let vpOpenerTrigger=null;
@@ -62,6 +63,8 @@ function vpResetPickerState(){
   vpActivePair=1;
   vpIncludeOutlinedText=false;
   vpEl('vpIncludeText').checked=false;
+  vpDebugBoxesOn=false;
+  vpEl('vpDebugBoxes').checked=false;
   ['A','B'].forEach(w=>{
     vpEl('vpOverlay'+w).innerHTML='';
     vpEl('vpAnchorChoice'+w).style.display='none';
@@ -95,7 +98,40 @@ async function vpBuildIndexes(){
   progressEl.style.display='none';
   vpEl('vpFilterStats').textContent=`${vpIndexA.stats.total+vpIndexB.stats.total} elementos indexados · ${vpIndexA.stats.filteredText+vpIndexB.stats.filteredText} filtrados como texto trazado`;
   vpSetupStage('A');vpSetupStage('B');
+  vpBuildDebugBoxes('A');vpBuildDebugBoxes('B');
 }
+
+// ---- modo de depuración: cajas de todos los elementos indexados -----------
+// Verificación visual directa de que la geometría indexada (bbox de cada
+// elemento) encaja con el render — mismo <svg viewBox> y mismo espacio de
+// coordenadas natural que ya usan el highlight y el contorno persistente.
+
+function vpBuildDebugBoxes(which){
+  const overlay=vpEl('vpOverlay'+which);
+  const index=which==='A'?vpIndexA:vpIndexB;
+  const old=overlay.querySelector('.vp-debug-boxes');
+  if(old)old.remove();
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','vp-debug-boxes'+(vpDebugBoxesOn?' on':''));
+  if(index){
+    for(const el of index.elements){
+      const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',el.bbox.x);r.setAttribute('y',el.bbox.y);
+      r.setAttribute('width',el.bbox.w);r.setAttribute('height',el.bbox.h);
+      r.setAttribute('class','vp-debug-box'+(el.isLikelyOutlinedText?' text':''));
+      g.appendChild(r);
+    }
+  }
+  overlay.insertBefore(g,overlay.firstChild);
+}
+
+vpEl('vpDebugBoxes').onchange=function(){
+  vpDebugBoxesOn=this.checked;
+  ['A','B'].forEach(w=>{
+    const g=vpEl('vpOverlay'+w).querySelector('.vp-debug-boxes');
+    if(g)g.classList.toggle('on',vpDebugBoxesOn);
+  });
+};
 
 vpEl('vpCancelBuild').onclick=()=>{if(vpBuildAbortCtrl)vpBuildAbortCtrl.abort();closeVectorPicker();};
 

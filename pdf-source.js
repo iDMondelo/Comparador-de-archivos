@@ -95,7 +95,7 @@ function renderSvgToCanvas(file,dpi){
     const url=URL.createObjectURL(file);
     const img=new Image();
     img.onload=()=>{
-      const scale=dpi/96;
+      const scale=svgDpiScale(dpi);
       const w=Math.round((img.naturalWidth||img.width)*scale);
       const h=Math.round((img.naturalHeight||img.height)*scale);
       try{

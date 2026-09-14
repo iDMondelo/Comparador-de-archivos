@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'12',date:'2026-08-08',changes:[
+    'Corrige el resaltado del selector de elemento de alineación: los trazados con varios subtrazados (letras con agujero, texto convertido a trazado) ya no se dibujan con diagonales espurias entre ellos.',
+    'El contador de texto trazado detecta ahora también los casos agrupados en un solo trazado, y los elementos referenciados con <use> pasan a ser seleccionables. Añade un modo de depuración para ver superpuestas las cajas de todos los elementos indexados.'
+  ]},
   {version:'11',date:'2026-08-07',changes:[
     'Baja el tamaño mínimo de zona por defecto de 0,8 % a 0,1 % para no descartar cambios pequeños legítimos (letras sueltas, detalles finos).',
     'Ajusta la fusión de regiones cercanas y añade texto de ayuda junto al campo para acompañar el nuevo valor.'
@@ -25,9 +29,6 @@ const VERSION_HISTORY=[
   {version:'8',date:'2026-07-30',changes:[
     'Añade ayuda plegable en la pantalla inicial y el historial de versiones.',
     'Cambia el umbral ΔE por defecto de 5 a 1, con sugerencia automática a 2 ante JPG o alineación con escala/giro.'
-  ]},
-  {version:'7',date:'2026-07-30',changes:[
-    'Alineación por hasta 2 puntos de referencia por imagen: corrige escala y giro además de la traslación, y marca las zonas sin contenido comparable de B.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
