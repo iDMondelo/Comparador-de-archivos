@@ -8,7 +8,10 @@ Funciona íntegramente en el navegador: los archivos nunca se suben a ningún se
 
 - **Comparación píxel a píxel** en espacio Lab usando la fórmula **CIEDE2000**, con umbral de tolerancia ΔE ajustable.
 - **Formatos de entrada**: PDF, .ai, SVG, JPG, PNG.
-- **Alineación manual** de las dos imágenes mediante puntos de referencia (zoom y desplazamiento incluidos).
+- **Alineación por elementos vectoriales** (método recomendado para PDF/.ai/SVG): se hace clic sobre un elemento real del diseño en el archivo A y la app detecta automáticamente el elemento equivalente en B por similitud de forma; con un punto de ancla se calcula la traslación, y con dos se calculan además escala y rotación.
+- **Alineación manual** por puntos de referencia, como método alternativo (zoom y desplazamiento incluidos).
+- **Ajuste fino por teclado** de los puntos/anclas de alineación (flechas = 1 px, Shift + flechas = 10 px).
+- **Verificación de la alineación**: avisos automáticos si la escala, la rotación o la cobertura entre ambos archivos quedan fuera de rango, con resaltado de las zonas de A sin correspondencia en B.
 - **Vistas de resultado**: overlay de diferencias y mapa de calor ΔE.
 - **Análisis de texto** con OCR (vía [Tesseract.js](https://github.com/naptha/tesseract.js), idiomas español e inglés incluidos) para detectar cambios de texto entre ambas versiones.
 - **Selección de regiones** para acotar el análisis a una zona concreta del diseño.
@@ -28,7 +31,11 @@ No requiere instalación, dependencias de Node ni build: es HTML/CSS/JS estátic
 | `app.js` | Orquestación general: ciclo de vida de archivos, pestañas, comparación, exportación |
 | `de-worker.js` | Web Worker que calcula la diferencia de color ΔE2000 |
 | `pdf-source.js` | Carga y rasterizado de PDF/.ai/SVG (vía pdf.js) |
-| `align.js` | Alineación manual de las dos imágenes |
+| `align.js` | Alineación manual de las dos imágenes por puntos de referencia |
+| `vector-picker.js` | Alineación por elementos vectoriales: selección, matching automático y vista previa de la transformación |
+| `vector-geometry.js` | Extracción de geometría vectorial desde SVG/PDF/.ai y detección de coincidencias por forma |
+| `similarity.js` | Cálculo de la transformación (traslación, escala, rotación) y de la máscara de cobertura entre A y B |
+| `nudge.js` | Ajuste fino por teclado de los puntos/anclas de alineación |
 | `canvas-view.js` | Renderizado de overlay y mapa de calor |
 | `regions-panel.js` | Selección de regiones de análisis |
 | `text-analysis.js` | OCR y comparación de texto (vía Tesseract.js) |

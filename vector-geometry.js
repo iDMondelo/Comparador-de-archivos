@@ -11,8 +11,8 @@
 // sobre pointsA/pointsB sin conversiones adicionales.
 // ============================================================================
 
-function pxToMm(px,dpi){
-  return px/(dpi||300)*25.4;
+function pxToMm(px,dpi,userUnit){
+  return px/(dpi||300)*25.4*(userUnit||1);
 }
 
 // Factor SVG (96dpi, "user units") -> px del render (dpi elegido). Compartido
@@ -281,12 +281,117 @@ function pointsToPathD(pts,isClosed){
 }
 
 // ---- extracción PDF/.ai ------------------------------------------------
-// Puerto a producción del bucle validado en el diagnóstico Fase 1
-// (getOperatorList + pila CTM + mapeo por viewport.transform). Reutiliza
-// `loadPdfJs()`, ya definida en pdf-source.js — mismo build vendido, sin
-// duplicar carga de PDF.js (la función existe en window aunque este script
-// se cargue antes: solo se invoca cuando el usuario abre el picker, mucho
-// después de que todos los <script> ya se hayan ejecutado).
+// Reutiliza `loadPdfJs()`, ya definida en pdf-source.js — mismo build
+// vendido, sin duplicar carga de PDF.js (la función existe en window aunque
+// este script se cargue antes: solo se invoca cuando el usuario abre el
+// picker, mucho después de que todos los <script> ya se hayan ejecutado).
+//
+// Generalidad exigida (ver encargo de corrección): MediaBox con origen
+// distinto de (0,0), CropBox≠MediaBox, /Rotate, UserUnit, Form XObjects
+// anidados con matriz/BBox propios, curvas Bézier reales, recorte (W n) que
+// no debe generar elementos, y texto vivo indexable. Todo pasa por la MISMA
+// combinedMatrix()/mapPt() que ya usa el render (viewport.transform × CTM
+// acumulada) — ninguna otra función convierte coordenadas por su cuenta.
+
+function unionBBox(a,b){
+  if(!a)return{x:b.x,y:b.y,w:b.w,h:b.h};
+  const x0=Math.min(a.x,b.x),y0=Math.min(a.y,b.y);
+  const x1=Math.max(a.x+a.w,b.x+b.w),y1=Math.max(a.y+a.h,b.y+b.h);
+  return{x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+function bboxIntersects(a,b){
+  return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+}
+function bboxIntersection(a,b){
+  const x0=Math.max(a.x,b.x),y0=Math.max(a.y,b.y);
+  const x1=Math.min(a.x+a.w,b.x+b.w),y1=Math.min(a.y+a.h,b.y+b.h);
+  if(x1<=x0||y1<=y0)return{x:x0,y:y0,w:0,h:0};
+  return{x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+
+function segsToPathD(segs){
+  let d='';
+  for(const s of segs){
+    if(s.t==='M')d+=`M ${s.p[0].toFixed(2)} ${s.p[1].toFixed(2)} `;
+    else if(s.t==='L')d+=`L ${s.p[0].toFixed(2)} ${s.p[1].toFixed(2)} `;
+    else if(s.t==='C')d+=`C ${s.c1[0].toFixed(2)} ${s.c1[1].toFixed(2)} ${s.c2[0].toFixed(2)} ${s.c2[1].toFixed(2)} ${s.p[0].toFixed(2)} ${s.p[1].toFixed(2)} `;
+  }
+  return d;
+}
+
+// ---- acumulador de subtrazado (geometría PDF ya mapeada a espacio de render)
+// `anchors` son solo los nodos reales (finales de segmento: moveTo/lineTo/
+// curva/rect) — igual que antes, para no romper nodeCount ni el firmado por
+// forma. `segs` guarda además los puntos de control de cada curva, solo para
+// poder construir el Path2D/`d` real y una caja que los contenga.
+
+function newSubpathAccum(x,y){
+  return{anchors:[[x,y]],segs:[{t:'M',p:[x,y]}],minX:x,maxX:x,minY:y,maxY:y};
+}
+function accumBBox(acc,x,y){
+  if(x<acc.minX)acc.minX=x;if(x>acc.maxX)acc.maxX=x;
+  if(y<acc.minY)acc.minY=y;if(y>acc.maxY)acc.maxY=y;
+}
+function accumLine(acc,p){
+  acc.anchors.push(p);acc.segs.push({t:'L',p});
+  accumBBox(acc,p[0],p[1]);
+}
+function accumCurve(acc,c1,c2,p){
+  acc.anchors.push(p);acc.segs.push({t:'C',c1,c2,p});
+  accumBBox(acc,c1[0],c1[1]);accumBBox(acc,c2[0],c2[1]);accumBBox(acc,p[0],p[1]);
+}
+function accumClose(acc){
+  if(!acc||!acc.anchors.length)return;
+  const p0=acc.anchors[0],last=acc.anchors[acc.anchors.length-1];
+  if(Math.hypot(p0[0]-last[0],p0[1]-last[1])>1e-6){
+    acc.anchors.push(p0);acc.segs.push({t:'L',p:p0});
+  }
+  acc.forceClosed=true;
+}
+function finalizeSubpath(acc){
+  const first=acc.anchors[0],last=acc.anchors[acc.anchors.length-1];
+  const isClosed=!!acc.forceClosed||(acc.anchors.length>2&&Math.hypot(first[0]-last[0],first[1]-last[1])<0.01);
+  return{pts:acc.anchors,segs:acc.segs,isClosed,bbox:{x:acc.minX,y:acc.minY,w:acc.maxX-acc.minX,h:acc.maxY-acc.minY}};
+}
+function pushFinalizedSubpath(list,acc){
+  if(!acc||acc.anchors.length<2)return;
+  const sp=finalizeSubpath(acc);
+  if(sp.bbox.w<=0&&sp.bbox.h<=0)return;
+  list.push(sp);
+}
+// Cierre implícito de los operadores "close+paint" (s/b/b*): si el stream no
+// trajo un `h` explícito, la pintura igual cierra el subtrazado.
+function forceCloseSubpath(sp){
+  if(sp.isClosed)return;
+  const p0=sp.pts[0];
+  sp.pts.push(p0);sp.segs.push({t:'L',p:p0});
+  sp.isClosed=true;
+}
+
+// Un elemento PDF puede agrupar varios subtrazados (letra con agujero, un
+// `Do` que dibuja de una vez toda una palabra) — mismo patrón que ya usa
+// buildSvgElement, para que ambos lados indexen "un path = un elemento".
+function buildPdfElement(id,subpaths,isTextFlag){
+  const multi=subpaths.length>1;
+  const pts=multi?subpaths.flatMap(sp=>sp.pts):subpaths[0].pts;
+  const isClosedAll=multi?subpaths.every(sp=>sp.isClosed):subpaths[0].isClosed;
+  let bbox=null;
+  for(const sp of subpaths)bbox=unionBBox(bbox,sp.bbox);
+  const d=subpaths.map(sp=>segsToPathD(sp.segs)+(sp.isClosed?'Z ':'')).join('');
+  const{angles,segLengths}=multi?computeMultiSubpathSignatureData(subpaths):computePolylineSignatureData(pts,isClosedAll);
+  const nodeCount=multi?subpaths.reduce((s,sp)=>s+sp.pts.length-(sp.isClosed?1:0),0):pts.length-(isClosedAll?1:0);
+  const result={
+    id,kind:'pdf-path',bbox,
+    center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
+    nodeCount,isClosed:isClosedAll,
+    angles,segLengths,
+    aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
+    isLikelyOutlinedText:false,isRealText:!!isTextFlag,
+    d,pts
+  };
+  if(multi)result.subpaths=subpaths.map(sp=>({bbox:sp.bbox,nodeCount:sp.pts.length-(sp.isClosed?1:0),isClosed:sp.isClosed}));
+  return result;
+}
 
 async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
   const{onProgress,signal}=opts||{};
@@ -296,80 +401,128 @@ async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
   const opList=await page.getOperatorList();
   const{fnArray,argsArray}=opList;
 
+  const PAINT_OPS=new Set([OPS.stroke,OPS.closeStroke,OPS.fill,OPS.eoFill,OPS.fillStroke,OPS.eoFillStroke,OPS.closeFillStroke,OPS.closeEOFillStroke]);
+  const CLOSE_IMPLIED_OPS=new Set([OPS.closeStroke,OPS.closeFillStroke,OPS.closeEOFillStroke]);
+
   const IDENTITY=[1,0,0,1,0,0];
   let ctm=IDENTITY;
-  const stack=[];
+  let clip=null; // bbox activo en espacio de render, o null = sin recorte
+  const stack=[]; // {ctm,clip} — compartida por q/Q y por los Form XObject (misma semántica de anidamiento)
   let inText=false;
   let nextId=0;
+  let xObjectCount=0,paintOpCount=0,clipDiscardedCount=0;
   const elements=[];
+  let pendingPath=null,pendingClipBBox=null;
 
   function combinedMatrix(){return Util.transform(viewport.transform,ctm);}
   function mapPt(x,y){return Util.applyTransform([x,y],combinedMatrix());}
 
-  function finishSubpath(pts,isTextFlag){
-    if(!pts||pts.length<2)return;
-    const isClosed=pts.length>2&&Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1])<0.01;
-    const bbox=boundsOfPoints(pts);
-    if(bbox.w<=0&&bbox.h<=0)return;
-    const{angles,segLengths}=computePolylineSignatureData(pts,isClosed);
-    elements.push({
-      id:nextId++,kind:'pdf-path',bbox,
-      center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
-      nodeCount:pts.length-(isClosed?1:0),isClosed,
-      angles,segLengths,
-      aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
-      isLikelyOutlinedText:false,isRealText:!!isTextFlag,
-      d:pointsToPathD(pts,isClosed),pts
-    });
+  // Un elemento solo se crea cuando el path efectivamente se pinta
+  // (fill/stroke/fillStroke y variantes). `W n` (recorte sin pintado) o `n`
+  // suelto no generan elemento — pero si hubo `clip`/`eoClip` pendiente, su
+  // caja sí se registra como recorte activo para descartar geometría
+  // posterior que quede fuera.
+  function commitPending(fn,isPaint){
+    if(pendingPath){
+      if(isPaint&&CLOSE_IMPLIED_OPS.has(fn)){
+        const subs=pendingPath.subpaths;
+        if(subs.length)forceCloseSubpath(subs[subs.length-1]);
+      }
+      if(isPaint&&pendingPath.subpaths.length){
+        const el=buildPdfElement(nextId,pendingPath.subpaths,pendingPath.isText);
+        if(!clip||bboxIntersects(el.bbox,clip)){elements.push(el);nextId++;}
+        else clipDiscardedCount++;
+      }
+    }
+    if(pendingClipBBox){
+      clip=clip?bboxIntersection(clip,pendingClipBBox):pendingClipBBox;
+      pendingClipBBox=null;
+    }
+    pendingPath=null;
   }
 
   for(let i=0;i<fnArray.length;i++){
     if(signal&&signal.aborted){const err=new Error('cancelado');err.aborted=true;throw err;}
     const fn=fnArray[i],args=argsArray[i];
     if(fn===OPS.save){
-      stack.push(ctm);
+      stack.push({ctm,clip});
     }else if(fn===OPS.restore){
-      ctm=stack.length?stack.pop():IDENTITY;
+      const top=stack.length?stack.pop():{ctm:IDENTITY,clip:null};
+      ctm=top.ctm;clip=top.clip;
     }else if(fn===OPS.transform){
       ctm=Util.transform(ctm,args);
+    }else if(fn===OPS.paintFormXObjectBegin){
+      // args=[matrix,bbox] (bbox puede venir null si el XObject define Group) —
+      // sin esto, cualquier trazado dentro de un Form con Matrix propia queda
+      // desplazado exactamente esa transformación (causa raíz del bug de
+      // geometría desplazada).
+      xObjectCount++;
+      stack.push({ctm,clip});
+      const matrix=args&&args[0],bbox=args&&args[1];
+      if(matrix)ctm=Util.transform(ctm,matrix);
+      if(bbox){
+        const[bx0,by0,bx1,by1]=bbox;
+        const formClip=boundsOfPoints([mapPt(bx0,by0),mapPt(bx1,by0),mapPt(bx1,by1),mapPt(bx0,by1)]);
+        clip=clip?bboxIntersection(clip,formClip):formClip;
+      }
+    }else if(fn===OPS.paintFormXObjectEnd){
+      const top=stack.length?stack.pop():{ctm:IDENTITY,clip:null};
+      ctm=top.ctm;clip=top.clip;
     }else if(fn===OPS.beginText){
       inText=true;
     }else if(fn===OPS.endText){
       inText=false;
     }else if(fn===OPS.constructPath){
       const[ops,coords]=args;
-      let j=0,curPts=null;
+      let j=0,acc=null;
+      if(!pendingPath)pendingPath={subpaths:[],isText:inText};
+      const subpaths=pendingPath.subpaths;
       for(let k=0;k<ops.length;k++){
         const op=ops[k];
         if(op===OPS.moveTo){
-          if(curPts)finishSubpath(curPts,inText);
+          if(acc)pushFinalizedSubpath(subpaths,acc);
           const x=coords[j++],y=coords[j++];
-          curPts=[mapPt(x,y)];
+          const p=mapPt(x,y);
+          acc=newSubpathAccum(p[0],p[1]);
         }else if(op===OPS.lineTo){
           const x=coords[j++],y=coords[j++];
-          if(curPts)curPts.push(mapPt(x,y));
-        }else if(op===OPS.curveTo){
-          j+=4; // x1,y1,x2,y2 — puntos de control, no cuentan como nodo
-          const x=coords[j++],y=coords[j++];
-          if(curPts)curPts.push(mapPt(x,y));
-        }else if(op===OPS.curveTo2){ // 'v': ctrl1 = punto actual
-          j+=2; // x2,y2
-          const x=coords[j++],y=coords[j++];
-          if(curPts)curPts.push(mapPt(x,y));
-        }else if(op===OPS.curveTo3){ // 'y': ctrl2 = punto final
-          j+=2; // x1,y1
-          const x=coords[j++],y=coords[j++];
-          if(curPts)curPts.push(mapPt(x,y));
+          if(acc)accumLine(acc,mapPt(x,y));
+        }else if(op===OPS.curveTo){ // 'c': x1 y1 x2 y2 x3 y3 — curva completa
+          const c1=mapPt(coords[j],coords[j+1]);j+=2;
+          const c2=mapPt(coords[j],coords[j+1]);j+=2;
+          const p=mapPt(coords[j],coords[j+1]);j+=2;
+          if(acc)accumCurve(acc,c1,c2,p);
+        }else if(op===OPS.curveTo2){ // 'v': ctrl1 implícito = punto actual
+          const c2=mapPt(coords[j],coords[j+1]);j+=2;
+          const p=mapPt(coords[j],coords[j+1]);j+=2;
+          if(acc)accumCurve(acc,acc.anchors[acc.anchors.length-1],c2,p);
+        }else if(op===OPS.curveTo3){ // 'y': ctrl2 implícito = punto final
+          const c1=mapPt(coords[j],coords[j+1]);j+=2;
+          const p=mapPt(coords[j],coords[j+1]);j+=2;
+          if(acc)accumCurve(acc,c1,p,p);
         }else if(op===OPS.closePath){
-          if(curPts&&curPts.length)curPts.push(curPts[0]);
+          if(acc)accumClose(acc);
         }else if(op===OPS.rectangle){
-          if(curPts)finishSubpath(curPts,inText);
+          if(acc){pushFinalizedSubpath(subpaths,acc);acc=null;}
           const rx=coords[j++],ry=coords[j++],rw=coords[j++],rh=coords[j++];
-          finishSubpath([mapPt(rx,ry),mapPt(rx+rw,ry),mapPt(rx+rw,ry+rh),mapPt(rx,ry+rh),mapPt(rx,ry)],inText);
-          curPts=null;
+          const p1=mapPt(rx,ry),p2=mapPt(rx+rw,ry),p3=mapPt(rx+rw,ry+rh),p4=mapPt(rx,ry+rh);
+          const racc=newSubpathAccum(p1[0],p1[1]);
+          accumLine(racc,p2);accumLine(racc,p3);accumLine(racc,p4);accumClose(racc);
+          pushFinalizedSubpath(subpaths,racc);
         }
       }
-      if(curPts)finishSubpath(curPts,inText);
+      if(acc)pushFinalizedSubpath(subpaths,acc);
+    }else if(fn===OPS.clip||fn===OPS.eoClip){
+      if(pendingPath&&pendingPath.subpaths.length){
+        let u=null;
+        for(const sp of pendingPath.subpaths)u=unionBBox(u,sp.bbox);
+        pendingClipBBox=u;
+      }
+    }else if(PAINT_OPS.has(fn)){
+      paintOpCount++;
+      commitPending(fn,true);
+    }else if(fn===OPS.endPath){
+      commitPending(fn,false);
     }
     if(onProgress&&i>0&&i%20000===0){
       onProgress({done:i,total:fnArray.length});
@@ -377,7 +530,74 @@ async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
     }
   }
   if(onProgress)onProgress({done:fnArray.length,total:fnArray.length});
+  return{
+    elements,
+    stats:{xObjectCount,paintOpCount,clipDiscardedCount,rotate:page.rotate,userUnit:page.userUnit,pageNumber:page.pageNumber}
+  };
+}
+
+// ---- texto vivo (BT/ET + showText) como elemento indexable ----------------
+// Se apoya en page.getTextContent() (API pública de pdf.js, ya resuelve
+// fuentes/anchos) en vez de reimplementar Tm/Td/TJ a mano. Cada item trae su
+// propia `transform`; se combina con viewport.transform con el MISMO patrón
+// que combinedMatrix() usa para los trazados (documentado así en el propio
+// TextLayer de pdf.js). Limitación conocida: getTextContent() no acumula la
+// matriz de los Form XObject, así que texto vivo dentro de un XObject con
+// Matrix propia puede no coincidir exactamente con el render — a verificar
+// con un archivo real que tenga XObjects anidados con texto dentro.
+async function extractPdfLiveText(pdfDoc,pageNum,viewport,opts){
+  const{signal}=opts||{};
+  const lib=await loadPdfJs();
+  const Util=lib.Util;
+  const page=await pdfDoc.getPage(pageNum);
+  const textContent=await page.getTextContent();
+  const elements=[];
+  let nextId=0;
+  for(const item of textContent.items){
+    if(signal&&signal.aborted){const err=new Error('cancelado');err.aborted=true;throw err;}
+    if(!item.str||!item.str.trim())continue;
+    if(!item.width||item.width<=0)continue;
+    const tx=Util.transform(viewport.transform,item.transform);
+    const fontHeight=Math.hypot(tx[2],tx[3]);
+    if(fontHeight<=0)continue;
+    const ascent=fontHeight*0.8,descent=fontHeight*0.2;
+    const p0=Util.applyTransform([0,0],tx);
+    const p1=Util.applyTransform([item.width,0],tx);
+    const up=[tx[2]/fontHeight*ascent,tx[3]/fontHeight*ascent];
+    const down=[-tx[2]/fontHeight*descent,-tx[3]/fontHeight*descent];
+    const corners=[
+      [p0[0]+up[0],p0[1]+up[1]],
+      [p1[0]+up[0],p1[1]+up[1]],
+      [p1[0]+down[0],p1[1]+down[1]],
+      [p0[0]+down[0],p0[1]+down[1]]
+    ];
+    corners.push(corners[0]);
+    const bbox=boundsOfPoints(corners);
+    if(bbox.w<=0&&bbox.h<=0)continue;
+    const{angles,segLengths}=computePolylineSignatureData(corners,true);
+    elements.push({
+      id:nextId++,kind:'pdf-text',bbox,
+      center:{x:bbox.x+bbox.w/2,y:bbox.y+bbox.h/2},
+      nodeCount:4,isClosed:true,
+      angles,segLengths,
+      aspectRatio:bbox.h>0?bbox.w/bbox.h:0,
+      isLikelyOutlinedText:false,isRealText:true,
+      d:pointsToPathD(corners,true),pts:corners,
+      text:item.str
+    });
+  }
   return elements;
+}
+
+function logPdfIndexSummary(label,stats,filteredAsOutlinedText){
+  console.group(`Índice vectorial PDF — ${label} (página ${stats.pageNumber})`);
+  console.log(`rotate: ${stats.rotate}°, userUnit: ${stats.userUnit}`);
+  console.log(`Form XObjects atravesados: ${stats.xObjectCount}`);
+  console.log(`Operaciones de pintado: ${stats.paintOpCount}`);
+  console.log(`Trazados descartados por quedar fuera del recorte activo: ${stats.clipDiscardedCount}`);
+  console.log(`Elementos indexados — trazados: ${stats.pathElementCount}, texto vivo: ${stats.textElementCount}`);
+  console.log(`Elementos filtrados como texto trazado: ${filteredAsOutlinedText}`);
+  console.groupEnd();
 }
 
 // ---- heurística "texto trazado" ----------------------------------------
@@ -395,6 +615,7 @@ function classifyOutlinedText(elements,dpi){
   // exportador haya agrupado varios glifos en un único elemento.
   const items=[];
   for(const el of elements){
+    if(el.isRealText)continue; // texto vivo confirmado: nunca es candidato a "texto trazado"
     if(el.subpaths&&el.subpaths.length>1){
       for(const sp of el.subpaths){
         items.push({center:{x:sp.bbox.x+sp.bbox.w/2,y:sp.bbox.y+sp.bbox.h/2},bbox:sp.bbox,parentEl:el});
@@ -495,24 +716,37 @@ function hitTestPoint(index,x,y,includeOutlinedText){
 // ---- punto de entrada único: extracción + índice, cacheado por fuente -----
 
 async function buildVectorIndex(source,opts){
-  const{onProgress,signal}=opts||{};
+  const{onProgress,signal,label}=opts||{};
   const cacheKey=`${source.dpi}|${source.pageNum||1}`;
   if(source._vectorIndex&&source._vectorIndex.cacheKey===cacheKey){
     if(onProgress)onProgress({done:1,total:1});
     return source._vectorIndex;
   }
   let elements;
+  let pdfStats=null;
   if(source.sourceType==='svg'){
     elements=await extractSvgGeometry(source);
     if(onProgress)onProgress({done:1,total:1});
   }else if(source.sourceType==='pdf'||source.sourceType==='ai'){
-    elements=await extractPdfGeometry(source.pdfDoc,source.pageNum,source.viewport,{onProgress,signal});
+    const pathResult=await extractPdfGeometry(source.pdfDoc,source.pageNum,source.viewport,{onProgress,signal});
+    let textElements=[];
+    try{
+      textElements=await extractPdfLiveText(source.pdfDoc,source.pageNum,source.viewport,{signal});
+    }catch(e){
+      if(e&&e.aborted)throw e;
+      console.warn('No se pudo extraer texto vivo del PDF:',e);
+    }
+    elements=pathResult.elements.concat(textElements);
+    pdfStats=Object.assign({},pathResult.stats,{pathElementCount:pathResult.elements.length,textElementCount:textElements.length});
+    source.userUnit=pathResult.stats.userUnit;
   }else{
     throw new Error('Esta fuente no tiene geometría vectorial disponible.');
   }
+  elements.forEach((el,idx)=>{el.id=idx;}); // ids únicos tras fusionar trazados+texto
   const textStats=classifyOutlinedText(elements,source.dpi);
   const spatialIndex=buildSpatialIndex(elements,source.naturalWidth,source.naturalHeight);
   const index={elements,spatialIndex,stats:{total:elements.length,filteredText:textStats.filtered},cacheKey};
+  if(pdfStats)logPdfIndexSummary(label||source.sourceType,pdfStats,textStats.filtered);
   source._vectorIndex=index;
   return index;
 }
