@@ -277,6 +277,16 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .scale-lock-row label{display:inline-flex;align-items:center;gap:6px;color:var(--ink-dim);cursor:pointer}
 .scale-lock-row input[type=checkbox]{accent-color:var(--accent)}
 
+/* ---- opciones de render: simulación de sobreimpresión (overprint.js) ---- */
+.render-options-row{display:none;align-items:baseline;gap:var(--space-2) var(--space-3);flex-wrap:wrap;font-size:var(--caption-size);color:var(--ink-dim);margin:calc(var(--space-2) * -1) 0 var(--space-4);line-height:1.5}
+.render-options-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
+.render-options-row label{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:var(--weight-semibold);cursor:pointer;white-space:nowrap}
+.render-options-row input[type=checkbox]{accent-color:var(--accent)}
+.render-options-row input[type=checkbox]:disabled+span{color:var(--ink-mute)}
+.render-options-info{color:var(--ink-dim)}
+.render-options-info:empty,.render-options-warn:empty{display:none}
+.render-options-warn{flex-basis:100%;color:var(--accent-gold-deep)}
+
 /* ---- indicador de método de alineación activo ---- */
 .align-method-badge{font-size:var(--micro-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-soft);border-radius:var(--radius-pill);padding:2px 10px;margin-bottom:var(--space-2);display:inline-block}
 .align-method-badge:empty{display:none}
@@ -393,6 +403,13 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <button class="action" id="btnForceOcrB" style="display:none">Forzar OCR</button>
     </div>
   </div>
+</div>
+
+<div class="render-options-row" id="renderOptionsRow" style="display:none">
+  <span class="render-options-label">Render</span>
+  <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
+  <span class="render-options-info" id="overprintInfo"></span>
+  <span class="render-options-warn" id="overprintWarn"></span>
 </div>
 
 <div id="alignSection" style="display:none">
@@ -599,6 +616,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <ul>
           <li>Compara la apariencia final compuesta, no separaciones ni canales individuales de tinta.</li>
           <li>No compara tintas planas, sobreimpresión ni barnices por separado.</li>
+          <li>La simulación de sobreimpresión traduce los objetos sobreimpresos al modo Multiplicar. Es una aproximación visual válida para tintas planas y negro sobreimpreso, que es la práctica totalidad de los casos en artes finales. No sustituye a la previsualización de un RIP.</li>
           <li>No sustituye a una revisión profesional de preimpresión; es una ayuda para localizar cambios rápido.</li>
         </ul>
       </div>
@@ -717,6 +735,8 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 <script src="./align.js"></script>
 <script src="./vector-geometry.js"></script>
 <script src="./vector-picker.js"></script>
+<script src="./lib/pdf-lib/pdf-lib.min.js"></script>
+<script src="./overprint.js"></script>
 <script src="./pdf-source.js"></script>
 <script src="./text-analysis.js"></script>
 <script src="./regions-panel.js"></script>

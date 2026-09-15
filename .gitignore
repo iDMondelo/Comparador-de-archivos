@@ -9,3 +9,6 @@ _site/
 .jekyll-cache/
 .bundle/
 vendor/
+
+# capturas y resultados de verificación local
+pruebas/
