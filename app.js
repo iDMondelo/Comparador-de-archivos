@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'16',date:'2026-09-15',changes:[
+    'Simulación aproximada de sobreimpresión en el render de PDF/.ai: el archivo se reescribe en memoria (pdf-lib, nunca en disco) traduciendo los estados con /OP o /op a modo Multiplicar e inyectando un grupo de transparencia de página, y se aplica siempre por igual a A y a B.',
+    'Nuevo interruptor «Simular sobreimpresión», activado por defecto al detectar sobreimpresión, con recuento de estados traducidos y avisos para OPM 0 y grupos knockout. Cambiarlo re-renderiza ambos archivos y obliga a repetir la comparación.'
+  ]},
   {version:'15',date:'2026-09-14',changes:[
     'Entre dos archivos vectoriales (PDF/.ai) la escala queda bloqueada a 1:1 y el giro a 0: solo se calcula el desplazamiento, en puntos PDF, y B se renderiza ya desplazada por PDF.js sin remuestrear el bitmap, con un interruptor para desbloquear la escala si un archivo fue reescalado.',
     'El lienzo comparado pasa a ser la intersección física de ambas páginas (se muestra en mm y se trama lo que queda fuera en las miniaturas), el PPP queda enlazado entre ambos archivos y la alineación por caja de página avisa cuando los formatos son distintos.'
@@ -24,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'12',date:'2026-08-08',changes:[
     'Corrige el resaltado del selector de elemento de alineación: los trazados con varios subtrazados (letras con agujero, texto convertido a trazado) ya no se dibujan con diagonales espurias entre ellos.',
     'El contador de texto trazado detecta ahora también los casos agrupados en un solo trazado, y los elementos referenciados con <use> pasan a ser seleccionables. Añade un modo de depuración para ver superpuestas las cajas de todos los elementos indexados.'
-  ]},
-  {version:'11',date:'2026-08-07',changes:[
-    'Baja el tamaño mínimo de zona por defecto de 0,8 % a 0,1 % para no descartar cambios pequeños legítimos (letras sueltas, detalles finos).',
-    'Ajusta la fusión de regiones cercanas y añade texto de ayuda junto al campo para acompañar el nuevo valor.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -91,10 +91,10 @@ async function handleFileSelected(file,which){
     if(kind==='svg')throw new Error('El formato SVG no es compatible. Usa PDF, .ai, JPG o PNG.');
     let source;
     if(kind==='pdf'||kind==='ai'){
-      const{pdfDoc,pageCount}=await openPdf(file);
+      const{pdfDoc,pageCount,overprint}=await openPdf(file);
       const dpi=300;
       const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi,file.name);
-      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false};
+      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,overprint};
     }else{
       const rendered=await loadRaster(file);
       source={...rendered,file};
@@ -120,6 +120,9 @@ async function handleFileSelected(file,which){
       resetPdfControls(which);
       renderTextIndicator(which);
     }
+    // Sobreimpresión (overprint.js): si este archivo activa la simulación,
+    // el otro se reabre reescrito para que ambos reciban el mismo trato.
+    if(typeof syncOverprintMode==='function')await syncOverprintMode();
   }catch(err){
     status.textContent='Error al cargar archivo '+which+': '+err.message;
   }
@@ -534,6 +537,7 @@ function resetAll(){
   threshSlider.disabled=false;
 
   resetPdfControls('A');resetPdfControls('B');
+  if(typeof resetOverprintUI==='function')resetOverprintUI();
   renderTextIndicator('A');renderTextIndicator('B');
   if(typeof clearTextDiff==='function')clearTextDiff();
   if(typeof clearRegions==='function')clearRegions();
@@ -582,6 +586,7 @@ document.getElementById('btnExportReport').onclick=()=>{
       giroGrados:Number(reportTransform.thetaDeg.toFixed(2))
     }:null,
     escalaBloqueada:!!(reportTransform&&reportTransform.locked),
+    sobreimpresionSimulada:(typeof isOverprintSimActive==='function')?isOverprintSimActive():false,
     desplazamientoPt:(reportTransform&&reportTransform.locked)?{dx:Number(reportTransform.dxPt.toFixed(3)),dy:Number(reportTransform.dyPt.toFixed(3))}:null,
     areaComparadaMm:(reportTransform&&reportTransform.locked)?{ancho:Number(ptToMm(reportTransform.areaPt.w).toFixed(2)),alto:Number(ptToMm(reportTransform.areaPt.h).toFixed(2))}:null,
     umbralDE:parseInt(threshSlider.value),
