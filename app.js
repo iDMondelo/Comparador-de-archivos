@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'17',date:'2026-09-17',changes:[
+    'La resolución de análisis queda fija en 600 ppp (se retira el selector de PPP): antes de comparar, la herramienta estima la memoria y comprueba el límite de canvas de tu navegador, y avisa o bloquea el análisis si el archivo es demasiado grande para procesarse con seguridad.',
+    'Nueva barra de progreso por etapas durante el análisis (render, cálculo ΔE, detección de zonas, visualización), con tiempo transcurrido, estimación de tiempo restante y botón para cancelar.'
+  ]},
   {version:'16',date:'2026-09-15',changes:[
     'Simulación aproximada de sobreimpresión en el render de PDF/.ai: el archivo se reescribe en memoria (pdf-lib, nunca en disco) traduciendo los estados con /OP o /op a modo Multiplicar e inyectando un grupo de transparencia de página, y se aplica siempre por igual a A y a B.',
     'Nuevo interruptor «Simular sobreimpresión», activado por defecto al detectar sobreimpresión, con recuento de estados traducidos y avisos para OPM 0 y grupos knockout. Cambiarlo re-renderiza ambos archivos y obliga a repetir la comparación.'
@@ -24,13 +28,10 @@ const VERSION_HISTORY=[
   {version:'13',date:'2026-09-14',changes:[
     'Corrige la geometría vectorial de PDF/.ai: ahora sigue la matriz de los Form XObject anidados (evita desplazamientos), traza las curvas Bézier reales en vez de aproximarlas con líneas rectas, y agrupa los trazados con varios subtrazados en un solo elemento.',
     'El indexado ya no crea elementos fantasma a partir de trazados usados solo como recorte, descarta geometría fuera del recorte activo, y suma el texto vivo del PDF como elemento seleccionable.'
-  ]},
-  {version:'12',date:'2026-08-08',changes:[
-    'Corrige el resaltado del selector de elemento de alineación: los trazados con varios subtrazados (letras con agujero, texto convertido a trazado) ya no se dibujan con diagonales espurias entre ellos.',
-    'El contador de texto trazado detecta ahora también los casos agrupados en un solo trazado, y los elementos referenciados con <use> pasan a ser seleccionables. Añade un modo de depuración para ver superpuestas las cajas de todos los elementos indexados.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
+const ANALYSIS_DPI=600;
 
 const fileA=document.getElementById('fileA'),fileB=document.getElementById('fileB');
 const dropA=document.getElementById('dropA'),dropB=document.getElementById('dropB');
@@ -45,6 +46,25 @@ const textPane=document.getElementById('textPane');
 const threshSlider=document.getElementById('thresh');
 const threshVal=document.getElementById('threshVal');
 const legendThreshVal=document.getElementById('legendThreshVal');
+
+// ---- viabilidad (memoria/canvas a ANALYSIS_DPI) y progreso por etapas -----
+const viabilityPanelEl=document.getElementById('viabilityPanel');
+const viabilityForceRowEl=document.getElementById('viabilityForceRow');
+const btnForceCompare=document.getElementById('btnForceCompare');
+const viabilityConfirmBackdrop=document.getElementById('viabilityConfirmBackdrop');
+const viabilityConfirmBody=document.getElementById('viabilityConfirmBody');
+const viabilityConfirmAccept=document.getElementById('viabilityConfirmAccept');
+const viabilityConfirmCancel=document.getElementById('viabilityConfirmCancel');
+const viabilityConfirmClose=document.getElementById('viabilityConfirmClose');
+const compareProgressEl=document.getElementById('compareProgress');
+const compareProgressStageEl=document.getElementById('compareProgressStage');
+const compareProgressBarEl=document.getElementById('compareProgressBar');
+const compareProgressPctEl=document.getElementById('compareProgressPct');
+const compareProgressTimeEl=document.getElementById('compareProgressTime');
+const btnCancelCompare=document.getElementById('btnCancelCompare');
+
+let lastViability=null;
+let compareStartTime=0,compareTimerId=null,cancelRequested=false;
 
 let sourceA=null,sourceB=null,currentTab='overlay';
 let overlayData=null,heatmapData=null,pixelDEmap=null;
@@ -92,7 +112,7 @@ async function handleFileSelected(file,which){
     let source;
     if(kind==='pdf'||kind==='ai'){
       const{pdfDoc,pageCount,overprint}=await openPdf(file);
-      const dpi=300;
+      const dpi=ANALYSIS_DPI;
       const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi,file.name);
       source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,overprint};
     }else{
@@ -128,13 +148,14 @@ async function handleFileSelected(file,which){
   }
 }
 
-// Llamado desde pdf-source.js cuando el usuario cambia PPP o página.
+// Llamado desde pdf-source.js cuando el usuario cambia de página.
 function onPdfSourceUpdated(which){
   hideResults();
   populatePdfControls(which,which==='A'?sourceA:sourceB);
   analyzeTextModeFor(which);
   resetRefPoints();
   updateAlignSection();
+  checkReady();
 }
 
 fileA.onchange=e=>{if(e.target.files[0])handleFileSelected(e.target.files[0],'A');};
@@ -154,8 +175,91 @@ setupDropZone(dropA,'A');
 setupDropZone(dropB,'B');
 
 function checkReady(){
-  btnCompare.disabled=!(sourceA&&sourceB);
+  const ready=!!(sourceA&&sourceB);
+  btnCompare.disabled=!ready;
+  updateViabilityPanel(ready);
 }
+
+// ---- viabilidad de memoria a ANALYSIS_DPI, antes de comparar ---------------
+// El límite de tamaño de canvas (falla en silencio en Safari) ya se
+// comprueba en pdf-source.js justo antes de cada render — aquí solo se
+// estima la MEMORIA necesaria para el propio cálculo de comparación, un
+// juicio bajo incertidumbre que sí admite forzarlo si el usuario lo decide.
+function updateViabilityPanel(ready){
+  if(!ready){
+    viabilityPanelEl.style.display='none';
+    viabilityForceRowEl.style.display='none';
+    lastViability=null;
+    return;
+  }
+  const pixelsA=sourceA.naturalWidth*sourceA.naturalHeight;
+  const pixelsB=sourceB.naturalWidth*sourceB.naturalHeight;
+  const bigger=pixelsA>=pixelsB?sourceA:sourceB;
+  const viability=computeViability(Math.max(pixelsA,pixelsB),bigger.naturalWidth,bigger.naturalHeight);
+  lastViability=viability;
+  renderViabilityPanel(viabilityPanelEl,viability);
+  if(viability.level==='red'){
+    btnCompare.disabled=true;
+    // El límite de canvas nunca se puede forzar (resultado en blanco, no un
+    // error) — solo se ofrece "forzar" cuando el motivo es la estimación de
+    // memoria, que sí podría funcionar.
+    viabilityForceRowEl.style.display=viability.exceedsCanvasCeiling?'none':'flex';
+  }else{
+    btnCompare.disabled=false;
+    viabilityForceRowEl.style.display='none';
+  }
+}
+
+// ---- modal de confirmación (ámbar: confirmar / rojo: forzar) --------------
+let viabilityConfirmOnAccept=null;
+
+function openViabilityConfirm(bodyHtml,acceptLabel,onAccept){
+  viabilityConfirmBody.innerHTML=bodyHtml;
+  viabilityConfirmAccept.textContent=acceptLabel;
+  viabilityConfirmOnAccept=onAccept;
+  viabilityConfirmBackdrop.classList.add('open');
+  document.addEventListener('keydown',onViabilityConfirmKeydown);
+}
+function closeViabilityConfirm(){
+  viabilityConfirmBackdrop.classList.remove('open');
+  viabilityConfirmOnAccept=null;
+  document.removeEventListener('keydown',onViabilityConfirmKeydown);
+}
+function onViabilityConfirmKeydown(e){
+  if(e.key==='Escape')closeViabilityConfirm();
+}
+viabilityConfirmAccept.onclick=()=>{
+  const fn=viabilityConfirmOnAccept;
+  closeViabilityConfirm();
+  if(fn)fn();
+};
+viabilityConfirmCancel.onclick=closeViabilityConfirm;
+viabilityConfirmClose.onclick=closeViabilityConfirm;
+viabilityConfirmBackdrop.addEventListener('click',e=>{
+  if(e.target===viabilityConfirmBackdrop)closeViabilityConfirm();
+});
+
+function onCompareClick(){
+  if(!lastViability||lastViability.level==='green'){compare();return;}
+  if(lastViability.level==='amber'){
+    openViabilityConfirm(
+      'El análisis es posible pero exigente para la memoria de este navegador. Cierra otras pestañas o aplicaciones antes de continuar.',
+      'Continuar',
+      compare
+    );
+  }
+  // level 'red' con btnCompare habilitado no debería ocurrir (se deshabilita
+  // en updateViabilityPanel); si ocurriera, no hacer nada — se usa
+  // btnForceCompare para ese caso.
+}
+
+btnForceCompare.onclick=()=>{
+  openViabilityConfirm(
+    'Este archivo excede la memoria estimada disponible en este navegador a 600 ppp. Forzar la comparación puede hacer que el navegador se quede sin memoria y se bloquee o se cierre la pestaña. Guarda tu trabajo en otras pestañas antes de continuar.',
+    'Forzar de todos modos',
+    compare
+  );
+};
 
 function hideResults(){
   statsRow.style.display='none';
@@ -217,7 +321,7 @@ function checkAlignmentSuggestion(fullSimilarity){
   }
 }
 
-btnCompare.onclick=compare;
+btnCompare.onclick=onCompareClick;
 document.getElementById('btnReset').onclick=resetAll;
 
 // ---- geometría de alineación y extracción de píxeles -----------------------
@@ -314,7 +418,14 @@ function getWorker(){
   return deWorker;
 }
 
-function onWorkerMessage(e){
+// Cierra y olvida el worker de cálculo (parada garantizada del bucle ΔE en
+// curso): usado al cancelar, ante un error del worker y al reiniciar.
+// getWorker() lo vuelve a crear la próxima vez que haga falta.
+function terminateWorker(){
+  if(deWorker){deWorker.terminate();deWorker=null;}
+}
+
+async function onWorkerMessage(e){
   const msg=e.data;
   if(msg.type==='regionsResult'){
     if(typeof onRegionsResult==='function')onRegionsResult(msg);
@@ -322,8 +433,15 @@ function onWorkerMessage(e){
   }
   if(msg.runId!==currentRunId)return;
   if(msg.type==='progress'){
-    status.textContent=`Analizando… ${Math.round(msg.done/msg.total*100)}%`;
+    if(msg.phase==='regions'){
+      renderCompareProgressDOM(85+(msg.done/msg.total)*10,'Detectando zonas');
+    }else{
+      renderCompareProgressDOM(50+(msg.done/msg.total)*35,'Calculando diferencias ΔE');
+    }
   }else if(msg.type==='result'){
+    await announceStage(95,'Generando visualización');
+    if(msg.runId!==currentRunId)return; // cancelado mientras se cedía el fotograma
+
     cW=msg.width;cH=msg.height;
     overlayData=new ImageData(new Uint8ClampedArray(msg.overlayBuf),cW,cH);
     heatmapData=new ImageData(new Uint8ClampedArray(msg.heatmapBuf),cW,cH);
@@ -344,16 +462,95 @@ function onWorkerMessage(e){
     status.textContent='';
 
     renderTab(currentTab==='texto'?'overlay':currentTab);
-    btnCompare.disabled=false;
+    renderCompareProgressDOM(100,'Completado');
+    finishCompareProgress();
+    checkReady();
     threshSlider.disabled=false;
   }
 }
 
 function onWorkerError(err){
-  status.textContent='Error al analizar: '+(err.message||'desconocido');
-  btnCompare.disabled=false;
+  terminateWorker();
+  overlayData=null;heatmapData=null;pixelDEmap=null;
+  hideCompareProgress();
+  status.innerHTML='El navegador se quedó sin memoria durante el análisis.<br>'+
+    '· Probar en Chrome, que admite canvas mayores que Safari<br>'+
+    '· Cerrar otras pestañas y aplicaciones<br>'+
+    '· Recortar el PDF a la zona de interés antes de compararlo';
+  checkReady();
   threshSlider.disabled=false;
 }
+
+// ---- barra de progreso por etapas (compare()) ------------------------------
+
+function renderCompareProgressDOM(pct,label){
+  pct=Math.max(0,Math.min(100,pct));
+  compareProgressBarEl.style.width=pct+'%';
+  compareProgressPctEl.textContent=Math.round(pct)+'%';
+  if(label)compareProgressStageEl.textContent=label;
+}
+
+// Para transiciones de etapa que preceden un bloque pesado en el hilo
+// principal (render de PDF, reconstrucción de ImageData): cede dos
+// fotogramas para que el navegador PINTE la etiqueta antes de bloquear.
+// No se usa en las actualizaciones de alta frecuencia del worker (ΔE/
+// regiones), que ya llegan intercaladas con el hilo principal libre.
+function announceStage(pct,label){
+  renderCompareProgressDOM(pct,label);
+  return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+}
+
+function formatElapsed(ms){
+  const s=Math.round(ms/1000);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+function updateCompareTimeDisplay(pct){
+  const elapsed=performance.now()-compareStartTime;
+  let text='Transcurrido '+formatElapsed(elapsed);
+  if(pct>=50&&pct<100){
+    const estTotal=elapsed/(pct/100);
+    text+=' · restante ~'+formatElapsed(Math.max(0,estTotal-elapsed));
+  }
+  compareProgressTimeEl.textContent=text;
+}
+
+function showCompareProgress(){
+  cancelRequested=false;
+  compareStartTime=performance.now();
+  compareProgressEl.style.display='block';
+  renderCompareProgressDOM(0,'Renderizando archivo A');
+  compareProgressTimeEl.textContent='Transcurrido 00:00';
+  clearInterval(compareTimerId);
+  compareTimerId=setInterval(()=>{
+    const pct=parseFloat(compareProgressBarEl.style.width)||0;
+    updateCompareTimeDisplay(pct);
+  },400);
+}
+
+function finishCompareProgress(){
+  clearInterval(compareTimerId);compareTimerId=null;
+  setTimeout(()=>{compareProgressEl.style.display='none';},600);
+}
+
+function hideCompareProgress(){
+  clearInterval(compareTimerId);compareTimerId=null;
+  compareProgressEl.style.display='none';
+}
+
+function CompareCancelledError(){}
+CompareCancelledError.prototype=Object.create(Error.prototype);
+
+function cancelCompare(){
+  cancelRequested=true;
+  currentRunId++; // invalida cualquier mensaje del worker o callback en vuelo
+  terminateWorker();
+  hideCompareProgress();
+  status.textContent='Comparación cancelada.';
+  checkReady();
+  threshSlider.disabled=false;
+}
+btnCancelCompare.onclick=cancelCompare;
 
 // Neutraliza en `bufB` (copia ya independiente del ImageData mostrado) los
 // píxeles fuera de la máscara de cobertura, igualándolos a los de A: el
@@ -372,9 +569,10 @@ async function compare(){
   if(!sourceA||!sourceB)return;
   currentRunId++;
   const runId=currentRunId;
-  status.textContent='Preparando…';
+  status.textContent='';
   btnCompare.disabled=true;
   threshSlider.disabled=true;
+  showCompareProgress();
 
   const similarityMode=!!(refA&&refB&&refA2&&refB2);
   const lockedMode=typeof isScaleLockActive==='function'&&isScaleLockActive();
@@ -383,12 +581,18 @@ async function compare(){
   if(lockedMode){
     // Escala bloqueada 1:1 (physical-align.js): traslación pura en puntos,
     // B renderizada de nuevo ya desplazada, lienzo = intersección de páginas.
+    await announceStage(0,'Renderizando archivo A');
     let res;
     try{
-      res=await buildLockedAlignedRegion(sourceA,sourceB,refA,refB,refA2,refB2);
+      res=await buildLockedAlignedRegion(sourceA,sourceB,refA,refB,refA2,refB2,async(stageIdx)=>{
+        if(runId!==currentRunId)throw new CompareCancelledError();
+        if(stageIdx===1)await announceStage(25,'Renderizando archivo B');
+      });
     }catch(err){
+      hideCompareProgress();
+      if(err instanceof CompareCancelledError)return;
       status.textContent='Error al alinear: '+err.message;
-      btnCompare.disabled=false;
+      checkReady();
       threshSlider.disabled=false;
       return;
     }
@@ -408,10 +612,14 @@ async function compare(){
       rectB:{x:res.area.x0-t.dxPx,y:res.area.y0-t.dyPx}};
     updateLockedNotes(res);
   }else if(similarityMode){
+    await announceStage(0,'Renderizando archivo A');
+    await announceStage(25,'Renderizando archivo B');
     const sim=buildSimilarityAlignedRegion(sourceA,sourceB,refA,refA2,refB,refB2);
+    if(runId!==currentRunId)return;
     if(sim.w<=0||sim.h<=0){
+      hideCompareProgress();
       status.textContent='Error: la imagen A no tiene tamaño válido.';
-      btnCompare.disabled=false;
+      checkReady();
       threshSlider.disabled=false;
       return;
     }
@@ -425,10 +633,12 @@ async function compare(){
     lastRegion={w:cW,h:cH,aligned:true,similarity:true};
     updateSimilarityNotes(sim);
   }else{
+    await announceStage(0,'Renderizando archivo A');
     const region=computeAlignedRegion();
     if(region.w<=0||region.h<=0){
+      hideCompareProgress();
       status.textContent='Error: no hay superposición entre las imágenes con los puntos de referencia elegidos.';
-      btnCompare.disabled=false;
+      checkReady();
       threshSlider.disabled=false;
       return;
     }
@@ -441,6 +651,8 @@ async function compare(){
     comparedAreaPixels=cW*cH;
 
     imgAData=getPixelsRegion(sourceA,region.rectA,cW,cH);
+    await announceStage(25,'Renderizando archivo B');
+    if(runId!==currentRunId)return;
     imgBData=getPixelsRegion(sourceB,region.rectB,cW,cH);
 
     updateNotes(region);
@@ -452,7 +664,8 @@ async function compare(){
   const bufB=imgBData.data.buffer.slice(0);
   if(compareMaskGlobal)neutralizeMaskedPixels(bufB,imgAData.data,compareMaskGlobal);
 
-  status.textContent='Analizando… 0%';
+  await announceStage(50,'Calculando diferencias ΔE');
+  if(runId!==currentRunId)return;
   const worker=getWorker();
   worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,minSizePct,bufA,bufB},[bufA,bufB]);
 }
@@ -514,6 +727,8 @@ document.querySelectorAll('.tab').forEach(t=>{
 
 function resetAll(){
   currentRunId++;
+  terminateWorker();
+  hideCompareProgress();
   [sourceA,sourceB].forEach(s=>{
     if(!s)return;
     if(s._objectUrl)URL.revokeObjectURL(s._objectUrl);
@@ -535,6 +750,7 @@ function resetAll(){
   dropA.classList.remove('filled');dropB.classList.remove('filled');
   btnCompare.disabled=true;
   threshSlider.disabled=false;
+  updateViabilityPanel(false);
 
   resetPdfControls('A');resetPdfControls('B');
   if(typeof resetOverprintUI==='function')resetOverprintUI();

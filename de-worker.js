@@ -130,13 +130,17 @@ self.onmessage=function(e){
     lastDeMap=new Float32Array(deMap);
     lastW=width;lastH=height;lastRunId=runId;
 
+    // Regiones antes que el resultado final: así la barra de progreso del
+    // hilo principal puede mostrar "Detectando zonas" (con su propio
+    // progreso por filas, ver labelConnectedComponents) antes de
+    // "Generando visualización", en vez de al revés.
+    const result=computeRegions(lastDeMap,lastW,lastH,threshold,msg.minSizePct,msg.mergeDistPct,runId);
+    self.postMessage({type:'regionsResult',runId,regions:result.regions,stats:result.stats});
+
     self.postMessage({
       type:'result',runId,width,height,diffCount,deMax,
       overlayBuf:overlay.buffer,heatmapBuf:heat.buffer,deMapBuf:deMap.buffer
     },[overlay.buffer,heat.buffer,deMap.buffer]);
-
-    const result=computeRegions(lastDeMap,lastW,lastH,threshold,msg.minSizePct,msg.mergeDistPct);
-    self.postMessage({type:'regionsResult',runId,regions:result.regions,stats:result.stats});
     return;
   }
 
@@ -161,11 +165,15 @@ self.onmessage=function(e){
 // 600ppp se comporten de forma equivalente ante el mismo valor de UI.
 const REGION_MINSIZE_PCT_DEFAULT=0.1,REGION_MERGE_PCT_DEFAULT=1.0;
 
-function computeRegions(deMap,w,h,threshold,minSizePct,mergeDistPct){
+// `runId`, opcional: si se da, reporta progreso por filas (self.postMessage
+// {type:'progress',phase:'regions',...}) para la barra de progreso de
+// app.js. La llamada de regions-panel.js (recálculo al mover el umbral) no
+// lo pasa — no forma parte del progreso de una comparación en curso.
+function computeRegions(deMap,w,h,threshold,minSizePct,mergeDistPct,runId){
   const shortSide=Math.min(w,h);
   const minSizePx=(minSizePct||REGION_MINSIZE_PCT_DEFAULT)/100*shortSide;
   const mergeDistPx=(mergeDistPct||REGION_MERGE_PCT_DEFAULT)/100*shortSide;
-  const raw=labelConnectedComponents(deMap,w,h,threshold);
+  const raw=labelConnectedComponents(deMap,w,h,threshold,runId);
   const kept=discardSmallRegions(raw,minSizePx);
   const merged=mergeRegions(kept,mergeDistPx);
   const padded=padRegions(merged,8,w,h);
@@ -179,7 +187,7 @@ function computeRegions(deMap,w,h,threshold,minSizePct,mergeDistPct){
 
 // Flood-fill con 8-conectividad (para no partir letras en diagonal en dos
 // componentes) sobre los píxeles con ΔE >= threshold.
-function labelConnectedComponents(deMap,w,h,threshold){
+function labelConnectedComponents(deMap,w,h,threshold,runId){
   const n=w*h;
   const visited=new Uint8Array(n);
   const regions=[];
@@ -189,8 +197,10 @@ function labelConnectedComponents(deMap,w,h,threshold){
   // para el peor caso (toda la imagen en un único componente) desperdiciaría
   // cientos de MB en renders grandes sin necesidad.
   const stack=[];
+  const progressStep=Math.max(1,Math.floor(h/20));
 
   for(let y=0;y<h;y++){
+    if(runId!=null&&y%progressStep===0)self.postMessage({type:'progress',phase:'regions',runId,done:y,total:h});
     for(let x=0;x<w;x++){
       const idx=y*w+x;
       if(visited[idx]||deMap[idx]<threshold)continue;
@@ -225,6 +235,7 @@ function labelConnectedComponents(deMap,w,h,threshold){
       regions.push({x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1,pixelCount,deMaxRegion});
     }
   }
+  if(runId!=null)self.postMessage({type:'progress',phase:'regions',runId,done:h,total:h});
   return regions;
 }
 

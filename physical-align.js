@@ -138,15 +138,23 @@ function unlockedNoiseWarning(scale){
 // recortar el render completo de A dejaba residuos de 1 px (RGB ≤ 20) a lo
 // largo de los elementos que cruzan el borde de la intersección. Con la misma
 // geometría de dispositivo y el mismo recorte, el arte idéntico da 0.
-async function buildLockedAlignedRegion(sourceA,sourceB,A1,B1,A2,B2){
+// `onStage`, opcional (no-op por defecto): callback de solo instrumentación,
+// invocado justo antes de cada uno de los dos renders (0=A, 1=B) — no toca
+// ninguna matemática de offset/transform/área. Lo usa app.js para avanzar la
+// barra de progreso y como punto de cancelación (puede lanzar para abortar
+// antes del segundo render).
+async function buildLockedAlignedRegion(sourceA,sourceB,A1,B1,A2,B2,onStage){
+  if(typeof onStage!=='function')onStage=async()=>{};
   const transform=computeLockedTransform(sourceA,sourceB,A1,B1,A2,B2);
   const area=computeComparableArea(sourceA,sourceB,transform.dxPx,transform.dyPx);
   if(area.w<=0||area.h<=0)throw new Error('las páginas no se solapan con el desplazamiento calculado.');
 
+  await onStage(0);
   const canvasA=await renderPdfPageAligned(sourceA,sourceA.dpi,{x:-area.x0,y:-area.y0},area.w,area.h);
   const imgAData=canvasA.getContext('2d').getImageData(0,0,area.w,area.h);
   canvasA.width=0;canvasA.height=0;
 
+  await onStage(1);
   const canvasB=await renderPdfPageAligned(sourceB,sourceA.dpi,{x:transform.dxPx-area.x0,y:transform.dyPx-area.y0},area.w,area.h);
   const imgBData=canvasB.getContext('2d').getImageData(0,0,area.w,area.h);
   canvasB.width=0;canvasB.height=0;

@@ -6,7 +6,6 @@
 // comparación, que solo ve ImageData igual que antes.
 // ============================================================================
 
-const PDF_MAX_PIXELS=40_000_000; // guarda de memoria (~40 millones de píxeles)
 const PDF_LIB_PATH='./lib/pdfjs/pdf.min.mjs';
 const PDF_WORKER_PATH='./lib/pdfjs/pdf.worker.min.mjs';
 
@@ -30,11 +29,16 @@ function detectSourceKind(file){
   return'unknown';
 }
 
+// Guardián incondicional (nunca "forzable"): un canvas que excede el límite
+// real de este navegador no lanza un error legible, devuelve un resultado en
+// blanco/transparente (fallo silencioso conocido de Safari) — por eso se
+// compara contra el límite MEDIDO por viability.js, no contra un tope de
+// píxeles arbitrario.
 function checkRenderSize(w,h){
-  const px=Math.round(w)*Math.round(h);
-  if(px>PDF_MAX_PIXELS){
-    const mpx=(px/1_000_000).toFixed(1);
-    throw new Error(`El render resultante sería de ${mpx} millones de píxeles (límite ~40M). Baja los PPP e inténtalo de nuevo.`);
+  const dimW=Math.round(w),dimH=Math.round(h);
+  const ceiling=getCanvasSizeCeiling();
+  if(dimW>ceiling||dimH>ceiling){
+    throw new Error(`El render resultante (${dimW}×${dimH} px) supera el límite de canvas de este navegador (${ceiling}×${ceiling} px). Prueba en otro navegador (Chrome/Edge de escritorio admiten canvas mayores que Safari) o recorta el PDF a la zona de interés.`);
   }
 }
 
@@ -151,27 +155,51 @@ async function loadRaster(file){
   return{drawable:img,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,sourceType:'raster',_objectUrl:img._objectUrl};
 }
 
-// ---- UI: selector de PPP y de página por archivo ----------------------
+// ---- UI: indicador de resolución y selector de página por archivo -----
 
 const pdfControlsEls={
   A:document.getElementById('pdfControlsA'),
   B:document.getElementById('pdfControlsB')
 };
-const dpiSelectEls={A:document.getElementById('dpiA'),B:document.getElementById('dpiB')};
 const pageRowEls={A:document.getElementById('pageRowA'),B:document.getElementById('pageRowB')};
 const pageSelectEls={A:document.getElementById('pageA'),B:document.getElementById('pageB')};
+const analysisResolutionInfoEl=document.getElementById('analysisResolutionInfo');
 
 function resetPdfControls(which){
   pdfControlsEls[which].style.display='none';
   pageRowEls[which].style.display='none';
   pageSelectEls[which].innerHTML='';
-  dpiSelectEls[which].value='300';
+  updateAnalysisResolutionIndicator();
 }
 
-// Muestra y rellena los controles de PPP/página para una fuente ya cargada.
+// Indicador de solo lectura junto al interruptor de sobreimpresión (misma
+// fila, #renderOptionsRow, cuya visibilidad la sigue gobernando por completo
+// overprint.js — aquí solo se rellena el texto). Muestra las dimensiones ya
+// renderizadas a ANALYSIS_DPI de cada fuente PDF/.ai cargada; si hay un
+// archivo ráster junto a un PDF, o si A y B difieren de tamaño, se listan
+// ambas por separado.
+function updateAnalysisResolutionIndicator(){
+  if(!analysisResolutionInfoEl)return;
+  const A=typeof sourceA!=='undefined'?sourceA:null,B=typeof sourceB!=='undefined'?sourceB:null;
+  const pdfSources=[['A',A],['B',B]].filter(([,s])=>s&&s.pdfDoc);
+  if(!pdfSources.length){analysisResolutionInfoEl.textContent='';return;}
+  const sameDims=A&&B&&A.naturalWidth===B.naturalWidth&&A.naturalHeight===B.naturalHeight;
+  if(pdfSources.length===2&&sameDims){
+    analysisResolutionInfoEl.textContent=`Análisis a ${ANALYSIS_DPI} ppp — ${A.naturalWidth.toLocaleString('es')} × ${A.naturalHeight.toLocaleString('es')} px`;
+    return;
+  }
+  const parts=[['A',A],['B',B]].map(([label,s])=>{
+    if(!s)return null;
+    return s.pdfDoc
+      ?`${label}: ${s.naturalWidth.toLocaleString('es')} × ${s.naturalHeight.toLocaleString('es')} px (${ANALYSIS_DPI} ppp)`
+      :`${label}: ${s.naturalWidth.toLocaleString('es')} × ${s.naturalHeight.toLocaleString('es')} px (nativo, sin ppp)`;
+  }).filter(Boolean);
+  analysisResolutionInfoEl.textContent=`Análisis a ${ANALYSIS_DPI} ppp — `+parts.join(' · ');
+}
+
+// Muestra y rellena los controles de página para una fuente ya cargada.
 function populatePdfControls(which,source){
   pdfControlsEls[which].style.display='flex';
-  dpiSelectEls[which].value=String(source.dpi);
   if(source.pageCount>1){
     pageRowEls[which].style.display='inline-flex';
     pageSelectEls[which].innerHTML='';
@@ -184,26 +212,13 @@ function populatePdfControls(which,source){
   }else{
     pageRowEls[which].style.display='none';
   }
+  updateAnalysisResolutionIndicator();
 }
 
-// Cambiar DPI o página vuelve a renderizar esa fuente (no recompara sola;
-// el usuario sigue pulsando "Comparar"). Cuando AMBOS archivos son
-// vectoriales, el PPP queda enlazado: cambiarlo en uno re-renderiza los dos
-// al mismo valor, para que compartan escala física por construcción (ver
-// physical-align.js).
+// Cambiar de página vuelve a renderizar esa fuente (no recompara sola; el
+// usuario sigue pulsando "Comparar"). La resolución es fija (ANALYSIS_DPI),
+// ya no hay selector de PPP que enlazar entre A y B.
 function setupPdfControls(which){
-  dpiSelectEls[which].onchange=async()=>{
-    const dpi=parseInt(dpiSelectEls[which].value);
-    const other=which==='A'?'B':'A';
-    const thisSource=which==='A'?sourceA:sourceB;
-    const otherSource=other==='A'?sourceA:sourceB;
-    const linked=!!(thisSource&&thisSource.pdfDoc&&otherSource&&otherSource.pdfDoc);
-    await rerenderPdfSource(which,{dpi});
-    if(linked&&otherSource.dpi!==dpi){
-      dpiSelectEls[other].value=String(dpi);
-      await rerenderPdfSource(other,{dpi});
-    }
-  };
   pageSelectEls[which].onchange=()=>rerenderPdfSource(which,{pageNum:parseInt(pageSelectEls[which].value)});
 }
 setupPdfControls('A');

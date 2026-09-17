@@ -65,3 +65,4 @@ La herramienta pasa de tema oscuro genérico a la piel DMondelo: fondo claro (`-
 - Color del cursor/retícula de alineación (`--marker`): mantiene alto contraste sobre fotografías arbitrarias; el navy de marca se perdería sobre muchas imágenes.
 - Colores de severidad ΔE (`--sev-high/mid/low`) y la paleta del mapa de calor: son salida del propio algoritmo de comparación, no decoración — no se tocan.
 - Color de los recuadros de zonas de diferencia (`--region-mark:#FF00FF`): deliberadamente distinto de `--sev-*` para no confundirse con la leyenda de severidad ΔE (verde/naranja/rojo) ni perderse sobre artwork de packaging, donde el verde y el cian aparecen con frecuencia.
+- Color de aviso del panel de viabilidad (`--status-danger-deep`/`--status-danger-bg`): único rojo de la herramienta reservado al estado "no viable" del panel de memoria/canvas antes de comparar — deliberadamente distinto de `--sev-high`, que es salida del algoritmo ΔE, no un estado de interfaz.
