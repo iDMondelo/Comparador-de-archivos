@@ -62,6 +62,8 @@
   --sev-mid:#ffaa00;
   --sev-low:#00cc88;
   --region-mark:#FF00FF;
+  --status-danger-deep:#a3312c;
+  --status-danger-bg:#f7e9e8;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
@@ -145,6 +147,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .align-format-notice.positive{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
 .align-format-notice.warn{background:var(--canvas-soft);color:var(--accent-gold-deep)}
 .align-format-notice.warn-strong{background:var(--canvas-soft);color:var(--accent-gold-deep);font-weight:600}
+.align-format-notice.danger{background:var(--status-danger-bg);color:var(--status-danger-deep);font-weight:600}
 .align-controls-hint{font-size:var(--micro-size);color:var(--ink-faint);margin-top:var(--space-2)}
 .align-controls-hint .sep{margin:0 var(--space-2);color:var(--ink-mute)}
 .align-guide{font-size:var(--caption-size);font-weight:600;color:var(--primary-deep);margin-bottom:var(--space-2);line-height:1.5}
@@ -168,7 +171,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .align-transform-summary{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-1) 0;display:none}
 .align-transform-warn{font-size:var(--caption-size);color:var(--accent-gold-deep);margin:0 0 var(--space-2);display:none}
 
-/* ---- capa de entrada PDF/.ai: selector de PPP/página ---- */
+/* ---- capa de entrada PDF/.ai: selector de página ---- */
 .pdf-controls{display:none;flex-wrap:wrap;gap:var(--space-2) var(--space-3);align-items:center;margin-top:var(--space-2);font-size:var(--caption-size);color:var(--ink-dim)}
 .pdf-controls label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .pdf-controls select{border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-ui);font-size:12px;color:var(--ink);background:var(--surface)}
@@ -181,6 +184,13 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .ocr-progress .track{flex:1;height:6px;background:var(--canvas-tint);border-radius:var(--radius-pill);overflow:hidden}
 .ocr-progress .bar{height:100%;width:0;background:var(--primary);transition:width .15s}
 .ocr-progress .pct{font-family:var(--font-mono);min-width:190px;text-align:right}
+
+.compare-progress{margin:var(--space-3) 0;font-size:var(--caption-size);color:var(--ink-dim)}
+.compare-progress .track{height:6px;background:var(--canvas-tint);border-radius:var(--radius-pill);overflow:hidden;margin:var(--space-1) 0}
+.compare-progress .bar{height:100%;width:0;background:var(--primary);transition:width .15s}
+.compare-progress-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)}
+.compare-progress-time{font-family:var(--font-mono);color:var(--ink-faint)}
+.compare-progress .pct{font-family:var(--font-mono)}
 .text-diff-body{font-size:var(--body-md-size);line-height:1.9;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4);margin-top:var(--space-3)}
 .tw-del{color:var(--sev-high);text-decoration:line-through}
 .tw-add{color:var(--sev-low);font-weight:600}
@@ -354,13 +364,6 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <div class="name" id="nameA">ningún archivo</div>
     </div>
     <div class="pdf-controls" id="pdfControlsA">
-      <label>PPP
-        <select id="dpiA">
-          <option value="150">150</option>
-          <option value="300" selected>300</option>
-          <option value="600">600</option>
-        </select>
-      </label>
       <label id="pageRowA" style="display:none">Página
         <select id="pageA"></select>
       </label>
@@ -383,13 +386,6 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <div class="name" id="nameB">ningún archivo</div>
     </div>
     <div class="pdf-controls" id="pdfControlsB">
-      <label>PPP
-        <select id="dpiB">
-          <option value="150">150</option>
-          <option value="300" selected>300</option>
-          <option value="600">600</option>
-        </select>
-      </label>
       <label id="pageRowB" style="display:none">Página
         <select id="pageB"></select>
       </label>
@@ -406,6 +402,8 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 
 <div class="render-options-row" id="renderOptionsRow" style="display:none">
+  <span class="render-options-label">Resolución</span>
+  <span class="render-options-info" id="analysisResolutionInfo"></span>
   <span class="render-options-label">Render</span>
   <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
   <span class="render-options-info" id="overprintInfo"></span>
@@ -465,11 +463,28 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 <div class="hint" id="threshSuggestNote"></div>
 
+<div class="align-format-notice" id="viabilityPanel" style="display:none"></div>
+<div class="btn-row" id="viabilityForceRow" style="display:none">
+  <button class="action" id="btnForceCompare">Forzar de todos modos</button>
+</div>
+
 <div class="btn-row">
   <button class="action primary" id="btnCompare" disabled>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg> Comparar
   </button>
   <button class="action" id="btnReset"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 16v-4h4"/></svg> Reiniciar</button>
+</div>
+
+<div class="compare-progress" id="compareProgress" style="display:none">
+  <div class="compare-progress-row">
+    <span id="compareProgressStage">Renderizando archivo A</span>
+    <span class="compare-progress-time" id="compareProgressTime"></span>
+  </div>
+  <div class="track"><div class="bar" id="compareProgressBar"></div></div>
+  <div class="compare-progress-row">
+    <span class="pct" id="compareProgressPct">0%</span>
+    <button type="button" class="action" id="btnCancelCompare">Cancelar</button>
+  </div>
 </div>
 
 <div id="status"></div>
@@ -607,7 +622,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <summary>Formatos admitidos<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
         <p>PDF, .ai, JPG y PNG. El formato SVG no es compatible.</p>
-        <p>En archivos PDF puedes elegir la resolución de análisis (PPP), y la herramienta detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
+        <p>El análisis se realiza siempre a 600 ppp, resolución suficiente para detectar desplazamientos mínimos y cambios en texto pequeño. Antes de comparar, la herramienta estima si tu navegador tiene memoria suficiente y avisa si el archivo es demasiado grande. En archivos PDF, además, detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
       </div>
     </details>
     <details class="help-item">
@@ -726,12 +741,27 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="modal-body" id="versionModalBody"></div>
   </div>
 </div>
+
+<div class="modal-backdrop" id="viabilityConfirmBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="viabilityConfirmTitle">
+    <div class="modal-header">
+      <h3 id="viabilityConfirmTitle">Confirmar antes de comparar</h3>
+      <button type="button" class="modal-close" id="viabilityConfirmClose" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="viabilityConfirmBody"></div>
+    <div class="modal-footer">
+      <button type="button" class="action" id="viabilityConfirmCancel">Cancelar</button>
+      <button type="button" class="action primary" id="viabilityConfirmAccept">Continuar</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <script src="./canvas-view.js"></script>
 <script src="./similarity.js"></script>
 <script src="./nudge.js"></script>
 <script src="./physical-align.js"></script>
+<script src="./viability.js"></script>
 <script src="./align.js"></script>
 <script src="./vector-geometry.js"></script>
 <script src="./vector-picker.js"></script>
