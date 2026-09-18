@@ -89,63 +89,56 @@ async function reopenPdfSource(which){
   source.pdfDoc=newDoc;
   source.overprint.applied=wantRew;
   oldDoc.destroy();
-  const r=await renderPdfPageToCanvas(newDoc,source.pageNum,source.dpi,source.file&&source.file.name);
+  const r=await renderPdfPage(newDoc,source.pageNum,source.dpi);
   Object.assign(source,r);
   status.textContent='';
   return true;
 }
 
-// DIAGNÓSTICO Fase 1 (alineación por cajas de página): vuelca por consola
-// todo lo que la API pública de PDF.js 4.10.38 realmente expone de una
-// página. `view` NO es el MediaBox: el worker lo calcula como la
-// intersección de CropBox y MediaBox. MediaBox/CropBox por separado se
-// parsean dentro del worker pero nunca cruzan a este hilo, y BleedBox/
-// TrimBox/ArtBox no se parsean en absoluto en esta versión — se deja
-// constancia explícita en el log para no dar a entender que existen.
-function logPdfPageBoxes(page,label){
-  const PT_TO_MM=25.4/72;
-  const [x0,y0,x1,y1]=page.view;
-  const wMm=(x1-x0)*PT_TO_MM,hMm=(y1-y0)*PT_TO_MM;
-  console.group(`Cajas PDF — ${label} (página ${page.pageNumber})`);
-  console.log(`view (CropBox∩MediaBox): [${x0}, ${y0}, ${x1}, ${y1}] pt  →  ${wMm.toFixed(1)} × ${hMm.toFixed(1)} mm`);
-  console.log(`rotate: ${page.rotate}°`);
-  console.log(`userUnit: ${page.userUnit}`);
-  console.log('MediaBox / CropBox por separado: no accesibles — el worker los calcula pero no los transmite al hilo principal');
-  console.log('BleedBox / TrimBox / ArtBox: no definida — PDF.js 4.10.38 no las parsea');
-  console.groupEnd();
-}
-
-// Renderiza una página del PDF a canvas al DPI elegido. Comprueba el
-// tamaño ANTES de crear el canvas para no intentar el render y colgar el
+// Única función de render de página PDF→canvas de toda la herramienta:
+// vista previa, selector de elemento vectorial, vista final tras alinear y
+// OCR pasan todos por aquí (ver encargo "unificación del render"). Comprueba
+// el tamaño ANTES de crear el canvas para no intentar el render y colgar el
 // navegador con documentos grandes a PPP alto.
-async function renderPdfPageToCanvas(pdfDoc,pageNum,dpi,label){
+//
+// `offsetPt` (opcional, en PUNTOS PDF, no píxeles): desplazamiento ya
+// incorporado al viewport (offsetX/offsetY de PDF.js, en espacio de píxel
+// tras escala) para las vistas con alineación ya aplicada — 0 si se omite.
+// PDF.js resuelve un desplazamiento no entero en el propio rasterizado, con
+// el mismo antialiasing que un render sin desplazar — nada de interpolar un
+// bitmap ya rasterizado.
+// `canvasW`/`canvasH` (opcional): tamaño del lienzo si es distinto del de la
+// página (p. ej. el lienzo de comparación); por defecto, el de la página.
+//
+// Sobreimpresión: no es parámetro de esta función — se resuelve reescribiendo
+// los bytes del PDF antes de abrirlo (overprint.js/openPdf), así que las tres
+// fases, al recibir el mismo pdfDoc, la reflejan igual automáticamente.
+//
+// Color de soporte: relleno blanco opaco fijo antes de pintar la página, para
+// que ningún archivo con zonas transparentes componga de forma distinta
+// según la fase.
+//
+// Anotaciones: SIEMPRE excluidas (annotationMode DISABLE) — PDF.js, con su
+// valor por defecto, pinta las apariencias de anotación (icono de nota,
+// resaltados, etc.) directamente sobre el canvas aunque no exista ningún
+// AnnotationLayer explícito en el código; eso no es contenido de impresión.
+async function renderPdfPage(pdfDoc,pageNum,dpi,{offsetPt,canvasW,canvasH}={}){
   const page=await pdfDoc.getPage(pageNum);
-  logPdfPageBoxes(page,label||'documento');
-  const viewport=page.getViewport({scale:dpi/72});
-  checkRenderSize(viewport.width,viewport.height);
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.round(viewport.width);
-  canvas.height=Math.round(viewport.height);
-  const context=canvas.getContext('2d');
-  await page.render({canvasContext:context,viewport}).promise;
-  return{drawable:canvas,naturalWidth:canvas.width,naturalHeight:canvas.height,viewport,dpi};
-}
-
-// Render alineado (escala bloqueada, ver physical-align.js): la misma página
-// al mismo PPP pero con el desplazamiento incorporado al viewport
-// (offsetX/offsetY se suman en espacio de píxel tras escala y giro), sobre un
-// canvas del tamaño del lienzo comparado. PDF.js resuelve un desplazamiento
-// no entero en el propio rasterizado, con el mismo antialiasing que el
-// render de A — nada de interpolar un bitmap ya rasterizado. Mismos
-// parámetros de render que renderPdfPageToCanvas, deliberadamente.
-async function renderPdfPageAligned(source,dpi,offsetPx,w,h){
-  const page=await source.pdfDoc.getPage(source.pageNum);
-  const viewport=page.getViewport({scale:dpi/72,offsetX:offsetPx.x,offsetY:offsetPx.y});
+  const scale=dpi/72;
+  const offsetX=offsetPt?offsetPt.x*scale:0;
+  const offsetY=offsetPt?offsetPt.y*scale:0;
+  const viewport=page.getViewport({scale,offsetX,offsetY});
+  const w=canvasW??Math.round(viewport.width);
+  const h=canvasH??Math.round(viewport.height);
   checkRenderSize(w,h);
   const canvas=document.createElement('canvas');
   canvas.width=w;canvas.height=h;
-  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
-  return canvas;
+  const context=canvas.getContext('2d');
+  context.fillStyle='#fff';
+  context.fillRect(0,0,w,h);
+  const pdfjsLib=await loadPdfJs();
+  await page.render({canvasContext:context,viewport,annotationMode:pdfjsLib.AnnotationMode.DISABLE}).promise;
+  return{drawable:canvas,naturalWidth:w,naturalHeight:h,viewport,dpi};
 }
 
 // Punto de entrada para todo lo que no es PDF/.ai: raster (usa loadImg ya
@@ -232,7 +225,7 @@ async function rerenderPdfSource(which,changes){
   Object.assign(source,changes);
   status.textContent='Renderizando página…';
   try{
-    const r=await renderPdfPageToCanvas(source.pdfDoc,source.pageNum,source.dpi,source.file&&source.file.name);
+    const r=await renderPdfPage(source.pdfDoc,source.pageNum,source.dpi);
     Object.assign(source,r);
     status.textContent='';
     if(typeof onPdfSourceUpdated==='function')onPdfSourceUpdated(which);

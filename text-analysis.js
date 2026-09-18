@@ -123,12 +123,8 @@ function loadTesseract(){
 
 async function extractOcrText(source,lang,onProgress){
   const Tesseract=await loadTesseract();
-  const page=await source.pdfDoc.getPage(source.pageNum);
-  const viewport=page.getViewport({scale:OCR_RENDER_DPI/72});
-  checkRenderSize(viewport.width,viewport.height);
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.round(viewport.width);canvas.height=Math.round(viewport.height);
-  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  const rendered=await renderPdfPage(source.pdfDoc,source.pageNum,OCR_RENDER_DPI);
+  const canvas=rendered.drawable;
 
   const worker=await Tesseract.createWorker(lang,1,{
     workerPath:'./lib/tesseract/worker.min.js',
