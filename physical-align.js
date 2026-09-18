@@ -114,6 +114,21 @@ function computeComparableArea(sourceA,sourceB,dxPx,dyPx){
   };
 }
 
+// Unión de las dos páginas en la rejilla de píxeles de A, una vez desplazada
+// B: es el lienzo de la vista final (para que el excedente de la página más
+// grande exista como píxeles y se pueda tramar como "no comparable" — ver
+// computeComparableArea más arriba para la intersección real, que sigue
+// siendo la única zona que entra en el cálculo de ΔE).
+function computeUnionArea(sourceA,sourceB,dxPx,dyPx){
+  const sA=pxPerPt(sourceA),sB=pxPerPt(sourceB);
+  const bSize=pageSizePt(sourceB);
+  const wBpx=bSize.w*sA,hBpx=bSize.h*sA;
+  const wA=sourceA.naturalWidth,hA=sourceA.naturalHeight;
+  const x0=Math.floor(Math.min(0,dxPx)+PA_EPS),y0=Math.floor(Math.min(0,dyPx)+PA_EPS);
+  const x1=Math.ceil(Math.max(wA,dxPx+wBpx)-PA_EPS),y1=Math.ceil(Math.max(hA,dyPx+hBpx)-PA_EPS);
+  return{x0,y0,w:x1-x0,h:y1-y0};
+}
+
 function formatLockedTransform(t){
   let s=`Escala: 1,000× (bloqueada) · Giro: 0,00° · Desplazamiento: ${paFormat(t.dxPt,2)} × ${paFormat(t.dyPt,2)} pt (${paFormat(t.dxPx,2)} × ${paFormat(t.dyPx,2)} px)`;
   if(t.measuredScale!=null)s+=` · Escala medida: ${paFormat(t.measuredScale,4)}× — ignorada por el bloqueo`;
@@ -130,14 +145,17 @@ function unlockedNoiseWarning(scale){
 }
 
 // Construye el lienzo bloqueado: AMBOS archivos renderizados por PDF.js
-// directamente sobre el lienzo de intersección, al mismo PPP y con el mismo
-// origen. A solo recibe un desplazamiento entero (−x0,−y0): no se transforma
-// el arte, pero sí se re-rasteriza sobre el mismo lienzo que B. Es necesario:
-// el rasterizador del canvas elige distinta cobertura de antialiasing para
-// un trazado según quede o no recortado por el borde del lienzo, así que
-// recortar el render completo de A dejaba residuos de 1 px (RGB ≤ 20) a lo
-// largo de los elementos que cruzan el borde de la intersección. Con la misma
-// geometría de dispositivo y el mismo recorte, el arte idéntico da 0.
+// directamente sobre el lienzo de la UNIÓN de las dos páginas, al mismo PPP y
+// con el mismo origen — no solo la intersección: así el excedente de la
+// página más grande existe como píxeles y puede tramarse como "no
+// comparable" en la vista final (compareMask, más abajo). A solo recibe un
+// desplazamiento entero (−x0,−y0): no se transforma el arte, pero sí se
+// re-rasteriza sobre el mismo lienzo que B. Es necesario: el rasterizador del
+// canvas elige distinta cobertura de antialiasing para un trazado según quede
+// o no recortado por el borde del lienzo, así que recortar el render
+// completo de A dejaba residuos de 1 px (RGB ≤ 20) a lo largo de los
+// elementos que cruzan el borde. Con la misma geometría de dispositivo y el
+// mismo recorte, el arte idéntico da 0.
 // `onStage`, opcional (no-op por defecto): callback de solo instrumentación,
 // invocado justo antes de cada uno de los dos renders (0=A, 1=B) — no toca
 // ninguna matemática de offset/transform/área. Lo usa app.js para avanzar la
@@ -148,16 +166,30 @@ async function buildLockedAlignedRegion(sourceA,sourceB,A1,B1,A2,B2,onStage){
   const transform=computeLockedTransform(sourceA,sourceB,A1,B1,A2,B2);
   const area=computeComparableArea(sourceA,sourceB,transform.dxPx,transform.dyPx);
   if(area.w<=0||area.h<=0)throw new Error('las páginas no se solapan con el desplazamiento calculado.');
+  const union=computeUnionArea(sourceA,sourceB,transform.dxPx,transform.dyPx);
+  const sA=pxPerPt(sourceA);
+  const dpi=sourceA.dpi;
 
   await onStage(0);
-  const canvasA=await renderPdfPageAligned(sourceA,sourceA.dpi,{x:-area.x0,y:-area.y0},area.w,area.h);
-  const imgAData=canvasA.getContext('2d').getImageData(0,0,area.w,area.h);
-  canvasA.width=0;canvasA.height=0;
+  const renderedA=await renderPdfPage(sourceA.pdfDoc,sourceA.pageNum,dpi,{offsetPt:{x:-union.x0/sA,y:-union.y0/sA},canvasW:union.w,canvasH:union.h});
+  const imgAData=renderedA.drawable.getContext('2d').getImageData(0,0,union.w,union.h);
+  renderedA.drawable.width=0;renderedA.drawable.height=0;
 
   await onStage(1);
-  const canvasB=await renderPdfPageAligned(sourceB,sourceA.dpi,{x:transform.dxPx-area.x0,y:transform.dyPx-area.y0},area.w,area.h);
-  const imgBData=canvasB.getContext('2d').getImageData(0,0,area.w,area.h);
-  canvasB.width=0;canvasB.height=0;
+  const renderedB=await renderPdfPage(sourceB.pdfDoc,sourceB.pageNum,dpi,{offsetPt:{x:(transform.dxPx-union.x0)/sA,y:(transform.dyPx-union.y0)/sA},canvasW:union.w,canvasH:union.h});
+  const imgBData=renderedB.drawable.getContext('2d').getImageData(0,0,union.w,union.h);
+  renderedB.drawable.width=0;renderedB.drawable.height=0;
 
-  return{w:area.w,h:area.h,imgAData,imgBData,transform,area,warnings:transform.warnings};
+  // Máscara de comparación: 1 dentro de la intersección real (area, trasladada
+  // al origen de la unión), 0 en el excedente — mismo mecanismo genérico que
+  // ya consumen neutralizeMaskedPixels()/drawMaskOverlay() para el modo de
+  // 2 puntos (similarity.js), sin tocar ninguna de las dos.
+  const compareMask=new Uint8Array(union.w*union.h);
+  const rx0=area.x0-union.x0,ry0=area.y0-union.y0;
+  for(let y=0;y<area.h;y++){
+    const rowStart=(ry0+y)*union.w+rx0;
+    compareMask.fill(1,rowStart,rowStart+area.w);
+  }
+
+  return{w:union.w,h:union.h,imgAData,imgBData,transform,area,union,compareMask,warnings:transform.warnings};
 }

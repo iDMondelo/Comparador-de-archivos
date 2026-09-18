@@ -196,46 +196,12 @@ if(scaleLockToggleEl){
   };
 }
 
-// ---- tramado de las miniaturas fuera del área comparable -------------------
-// Con la escala bloqueada, el lienzo de comparación es la intersección de las
-// dos páginas (physical-align.js). Lo que queda fuera en cada archivo se
-// muestra tramado en su miniatura, como "no comparable" — misma trama que
-// drawMaskOverlay (similarity.js) sobre el lienzo de resultados.
-
-let alignStripePatterns={A:null,B:null};
-
-function alignStripePattern(which,ctx,tile){
-  const cached=alignStripePatterns[which];
-  if(cached&&cached.tile===tile)return cached.pattern;
-  const p=document.createElement('canvas');
-  p.width=tile;p.height=tile;
-  const pctx=p.getContext('2d');
-  pctx.strokeStyle='rgba(111,118,122,0.6)';
-  pctx.lineWidth=Math.max(1,tile*0.2);
-  pctx.beginPath();
-  pctx.moveTo(-tile*0.2,tile);pctx.lineTo(tile,-tile*0.2);
-  pctx.moveTo(tile*0.3,tile*1.3);pctx.lineTo(tile*1.3,tile*0.3);
-  pctx.stroke();
-  const pattern=ctx.createPattern(p,'repeat');
-  alignStripePatterns[which]={tile,pattern};
-  return pattern;
-}
-
-function hatchOutsideRect(which,rect){
-  const canvas=alignCanvasEls[which];
-  const ctx=canvas.getContext('2d');
-  const W=canvas.width,H=canvas.height;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0,0,W,H);
-  ctx.rect(rect.x,rect.y,rect.w,rect.h);
-  ctx.clip('evenodd');
-  ctx.fillStyle='rgba(224,225,222,0.55)';
-  ctx.fillRect(0,0,W,H);
-  ctx.fillStyle=alignStripePattern(which,ctx,Math.max(10,Math.round(H/24)));
-  ctx.fillRect(0,0,W,H);
-  ctx.restore();
-}
+// ---- miniaturas de la sección de alineación --------------------------------
+// Muestran siempre el render íntegro de cada página, sin tramar y sin
+// recortar: el tramado de "no comparable" solo tiene sentido una vez
+// calculada la intersección real tras alinear, y eso solo ocurre en la vista
+// final de resultados (ver drawMaskOverlay en similarity.js), no aquí — con
+// 0 puntos colocados no hay ninguna alineación que justifique tramar nada.
 
 function drawAlignCoverage(){
   if(!sourceA||!sourceB)return;
@@ -247,11 +213,6 @@ function drawAlignCoverage(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(source.drawable,0,0);
   });
-  if(!isScaleLockActive())return;
-  const t=computeLockedTransform(sourceA,sourceB,pointsA[0],pointsB[0],null,null);
-  const area=computeComparableArea(sourceA,sourceB,t.dxPx,t.dyPx);
-  hatchOutsideRect('A',area.rectInA);
-  hatchOutsideRect('B',area.rectInB);
 }
 
 // Aviso específico según el formato de A y B: el método vectorial solo está

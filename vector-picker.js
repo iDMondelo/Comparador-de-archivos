@@ -97,7 +97,7 @@ async function vpBuildIndexes(){
   }
   progressEl.style.display='none';
   vpEl('vpFilterStats').textContent=`${vpIndexA.stats.total+vpIndexB.stats.total} elementos indexados · ${vpIndexA.stats.filteredText+vpIndexB.stats.filteredText} filtrados como texto trazado`;
-  vpSetupStage('A');vpSetupStage('B');
+  await vpSetupStage('A');await vpSetupStage('B');
   vpBuildDebugBoxes('A');vpBuildDebugBoxes('B');
 }
 
@@ -136,15 +136,22 @@ vpEl('vpDebugBoxes').onchange=function(){
 vpEl('vpCancelBuild').onclick=()=>{if(vpBuildAbortCtrl)vpBuildAbortCtrl.abort();closeVectorPicker();};
 
 // ---- montaje del stage: render atenuado + overlay SVG en coordenadas nativas
+//
+// Fondo del stage: llama a renderPdfPage() directamente (no reutiliza
+// source.drawable) para que el selector quede alimentado por la misma
+// función de render que la vista previa y la vista final — el velo blanco
+// translúcido de encima es una capa de UI para resaltar el elemento, no una
+// diferencia de render.
 
-function vpSetupStage(which){
+async function vpSetupStage(which){
   const source=which==='A'?sourceA:sourceB;
   const canvas=vpEl('vpCanvas'+which);
   const overlay=vpEl('vpOverlay'+which);
   const wrap=vpEl('vpStageWrap'+which);
-  canvas.width=source.naturalWidth;canvas.height=source.naturalHeight;
+  const rendered=await renderPdfPage(source.pdfDoc,source.pageNum,source.dpi);
+  canvas.width=rendered.naturalWidth;canvas.height=rendered.naturalHeight;
   const cctx=canvas.getContext('2d');
-  cctx.drawImage(source.drawable,0,0);
+  cctx.drawImage(rendered.drawable,0,0);
   cctx.fillStyle='rgba(255,255,255,0.55)';
   cctx.fillRect(0,0,canvas.width,canvas.height);
   const r=wrap.getBoundingClientRect();

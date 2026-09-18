@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'18',date:'2026-09-18',changes:[
+    'Unifica el render de PDF de las tres fases (vista previa, selector de elemento vectorial y vista final) en una sola función, que excluye siempre las anotaciones del PDF: el icono de una nota de comentario ya no aparece superpuesto al contenido.',
+    'El tramado de «no comparable» ya no aparece en la vista previa ni en el selector de elemento: solo se dibuja en la vista final tras alinear, y ahora se ve en ambos archivos por igual cuando uno tiene más página que el otro (antes esa franja ni se renderizaba en modo escala bloqueada).'
+  ]},
   {version:'17',date:'2026-09-17',changes:[
     'La resolución de análisis queda fija en 600 ppp (se retira el selector de PPP): antes de comparar, la herramienta estima la memoria y comprueba el límite de canvas de tu navegador, y avisa o bloquea el análisis si el archivo es demasiado grande para procesarse con seguridad.',
     'Nueva barra de progreso por etapas durante el análisis (render, cálculo ΔE, detección de zonas, visualización), con tiempo transcurrido, estimación de tiempo restante y botón para cancelar.'
@@ -24,10 +28,6 @@ const VERSION_HISTORY=[
   ]},
   {version:'14',date:'2026-09-14',changes:[
     'Retira el soporte de SVG: ya no se puede seleccionar ni arrastrar como formato de entrada, y al intentarlo se muestra un aviso de formato no compatible.'
-  ]},
-  {version:'13',date:'2026-09-14',changes:[
-    'Corrige la geometría vectorial de PDF/.ai: ahora sigue la matriz de los Form XObject anidados (evita desplazamientos), traza las curvas Bézier reales en vez de aproximarlas con líneas rectas, y agrupa los trazados con varios subtrazados en un solo elemento.',
-    'El indexado ya no crea elementos fantasma a partir de trazados usados solo como recorte, descarta geometría fuera del recorte activo, y suma el texto vivo del PDF como elemento seleccionable.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -113,7 +113,7 @@ async function handleFileSelected(file,which){
     if(kind==='pdf'||kind==='ai'){
       const{pdfDoc,pageCount,overprint}=await openPdf(file);
       const dpi=ANALYSIS_DPI;
-      const rendered=await renderPdfPageToCanvas(pdfDoc,1,dpi,file.name);
+      const rendered=await renderPdfPage(pdfDoc,1,dpi);
       source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,overprint};
     }else{
       const rendered=await loadRaster(file);
@@ -386,8 +386,8 @@ function updateSimilarityNotes(sim){
 }
 
 // Notas del modo de escala bloqueada (physical-align.js): traslación pura en
-// puntos, B renderizada ya desplazada (sin remuestreo) y lienzo = intersección
-// física de ambas páginas.
+// puntos, B renderizada ya desplazada (sin remuestreo); el lienzo es la unión
+// de ambas páginas, pero el área comparada sigue siendo solo su intersección.
 function updateLockedNotes(res){
   const t=res.transform;
   const notes=[];
@@ -400,7 +400,7 @@ function updateLockedNotes(res){
     notes.push('Aviso: los formatos de página son distintos y no se ha alineado por elemento — solo coincide lo que está en la misma posición respecto al origen de cada página.');
   }
   res.warnings.forEach(w=>notes.push('Aviso: '+w));
-  if(res.w*res.h>0&&res.w*res.h<1600){
+  if(res.area.w*res.area.h>0&&res.area.w*res.area.h<1600){
     notes.push('Aviso: el área de solapamiento es muy pequeña, las estadísticas pueden no ser representativas.');
   }
   noteBox.innerHTML=notes.join('<br>');
@@ -579,8 +579,10 @@ async function compare(){
   compareMaskGlobal=null;
 
   if(lockedMode){
-    // Escala bloqueada 1:1 (physical-align.js): traslación pura en puntos,
-    // B renderizada de nuevo ya desplazada, lienzo = intersección de páginas.
+    // Escala bloqueada 1:1 (physical-align.js): traslación pura en puntos, A y
+    // B renderizadas de nuevo sobre el lienzo de la UNIÓN de páginas; el
+    // excedente sobre la intersección real queda tramado (compareMaskGlobal),
+    // igual que en el modo de 2 puntos.
     await announceStage(0,'Renderizando archivo A');
     let res;
     try{
@@ -600,16 +602,18 @@ async function compare(){
     const t=res.transform;
     cW=res.w;cH=res.h;
     imgAData=res.imgAData;imgBData=res.imgBData;
-    comparedAreaPixels=cW*cH;
+    compareMaskGlobal=res.compareMask;
+    comparedAreaPixels=res.area.w*res.area.h;
     reportRefA=t.aligned?{...refA}:null;
     reportRefB=t.aligned?{...refB}:null;
     reportOffset={dx:t.dxPx,dy:t.dyPx};
     reportTransform={scale:1,thetaDeg:0,locked:true,dxPt:t.dxPt,dyPt:t.dyPt,areaPt:{w:res.area.wPt,h:res.area.hPt}};
-    // rectA/rectB: offsets de cada render completo al lienzo, para que la
-    // pestaña Texto (mapTextRectToCanvas) siga sabiendo saltar al overlay.
+    // rectA/rectB: offsets de cada render completo (origen de la unión) al
+    // lienzo, para que la pestaña Texto (mapTextRectToCanvas) siga sabiendo
+    // saltar al overlay.
     lastRegion={w:cW,h:cH,aligned:t.aligned,locked:true,dx:t.dxPx,dy:t.dyPx,
-      rectA:{x:res.area.x0,y:res.area.y0},
-      rectB:{x:res.area.x0-t.dxPx,y:res.area.y0-t.dyPx}};
+      rectA:{x:res.union.x0,y:res.union.y0},
+      rectB:{x:res.union.x0-t.dxPx,y:res.union.y0-t.dyPx}};
     updateLockedNotes(res);
   }else if(similarityMode){
     await announceStage(0,'Renderizando archivo A');
