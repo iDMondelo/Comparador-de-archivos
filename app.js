@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'19',date:'2026-09-22',changes:[
+    'Semáforo de fiabilidad junto al nombre de cada archivo PDF: verde/ámbar/rojo según perfil de salida declarado, cifrado, anotaciones con apariencia visible excluidas del render, sobreimpresión con OPM 0 y fuentes no embebidas en texto vivo — con el motivo en una línea al pasar el cursor o pulsar.',
+    'Todo se lee del mismo parseo que ya hacía la detección de sobreimpresión al cargar cada archivo, sin analizarlo una segunda vez.'
+  ]},
   {version:'18',date:'2026-09-18',changes:[
     'Unifica el render de PDF de las tres fases (vista previa, selector de elemento vectorial y vista final) en una sola función, que excluye siempre las anotaciones del PDF: el icono de una nota de comentario ya no aparece superpuesto al contenido.',
     'El tramado de «no comparable» ya no aparece en la vista previa ni en el selector de elemento: solo se dibuja en la vista final tras alinear, y ahora se ve en ambos archivos por igual cuando uno tiene más página que el otro (antes esa franja ni se renderizaba en modo escala bloqueada).'
@@ -25,9 +29,6 @@ const VERSION_HISTORY=[
   {version:'15',date:'2026-09-14',changes:[
     'Entre dos archivos vectoriales (PDF/.ai) la escala queda bloqueada a 1:1 y el giro a 0: solo se calcula el desplazamiento, en puntos PDF, y B se renderiza ya desplazada por PDF.js sin remuestrear el bitmap, con un interruptor para desbloquear la escala si un archivo fue reescalado.',
     'El lienzo comparado pasa a ser la intersección física de ambas páginas (se muestra en mm y se trama lo que queda fuera en las miniaturas), el PPP queda enlazado entre ambos archivos y la alineación por caja de página avisa cuando los formatos son distintos.'
-  ]},
-  {version:'14',date:'2026-09-14',changes:[
-    'Retira el soporte de SVG: ya no se puede seleccionar ni arrastrar como formato de entrada, y al intentarlo se muestra un aviso de formato no compatible.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;

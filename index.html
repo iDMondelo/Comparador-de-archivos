@@ -64,6 +64,9 @@
   --region-mark:#FF00FF;
   --status-danger-deep:#a3312c;
   --status-danger-bg:#f7e9e8;
+  --reliability-green:#1f9d55;
+  --reliability-amber:#d99a1b;
+  --reliability-red:#c0392b;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
@@ -94,6 +97,14 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .drop-zone.filled .upload-icon{color:var(--accent)}
 .drop-zone .label{font-size:13px;color:var(--ink-dim);margin-top:var(--space-2)}
 .drop-zone .name{font-family:var(--font-mono);font-size:12px;color:var(--ink);margin-top:var(--space-1)}
+.drop-zone .name-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:var(--space-1)}
+.drop-zone .name-row .name{margin-top:0}
+.reliability-dot{width:9px;height:9px;border-radius:50%;flex:none;cursor:default}
+.reliability-dot[hidden]{display:none}
+.reliability-dot.green{background:var(--reliability-green)}
+.reliability-dot.amber{background:var(--reliability-amber)}
+.reliability-dot.red{background:var(--reliability-red)}
+.reliability-tap{font-size:var(--caption-size);color:var(--ink-dim);white-space:nowrap}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4)}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-5) 0}
 .stat{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--elevation-1);padding:var(--space-4) var(--space-3);text-align:center}
@@ -361,7 +372,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <input type="file" accept=".pdf,.ai,image/*" id="fileA">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
-      <div class="name" id="nameA">ningún archivo</div>
+      <div class="name-row">
+        <div class="name" id="nameA">ningún archivo</div>
+        <span class="reliability-dot" id="reliabilityDotA" hidden></span>
+      </div>
     </div>
     <div class="pdf-controls" id="pdfControlsA">
       <label id="pageRowA" style="display:none">Página
@@ -383,7 +397,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       <input type="file" accept=".pdf,.ai,image/*" id="fileB">
       <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       <div class="label">Arrastra o haz clic</div>
-      <div class="name" id="nameB">ningún archivo</div>
+      <div class="name-row">
+        <div class="name" id="nameB">ningún archivo</div>
+        <span class="reliability-dot" id="reliabilityDotB" hidden></span>
+      </div>
     </div>
     <div class="pdf-controls" id="pdfControlsB">
       <label id="pageRowB" style="display:none">Página
@@ -767,6 +784,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 <script src="./vector-picker.js"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
 <script src="./overprint.js"></script>
+<script src="./reliability.js"></script>
 <script src="./pdf-source.js"></script>
 <script src="./text-analysis.js"></script>
 <script src="./regions-panel.js"></script>

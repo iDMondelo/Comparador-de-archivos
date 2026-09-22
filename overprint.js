@@ -14,6 +14,12 @@
 //
 // La reescritura se aplica SIEMPRE por igual a A y a B: aplicarla a uno solo
 // generaría diferencias falsas en la comparación.
+//
+// Este mismo documento pdf-lib (cargado una sola vez por archivo) también
+// deja leer, sin ningún parseo adicional, el resto de hechos que consume el
+// semáforo de fiabilidad (reliability.js): cifrado, /OutputIntents,
+// anotaciones con apariencia visible excluidas del render y fuentes no
+// embebidas — todo queda en `stats`, junto a opStates/opm0/knockout.
 // ============================================================================
 
 const overprintRowEl=document.getElementById('renderOptionsRow');
@@ -86,6 +92,17 @@ function opWalkResources(res,ctx,stats,visited){
       opWalkResources(s.dict.lookup(opName('Resources')),ctx,stats,visited);
     }
   }
+  const fonts=res.lookup(opName('Font'));
+  if(fonts instanceof PDFLib.PDFDict){
+    for(const[,raw]of fonts.entries()){
+      const tag=raw instanceof PDFLib.PDFRef?'f'+raw.toString():null;
+      if(tag){if(visited.has(tag))continue;visited.add(tag);}
+      const fd=ctx.lookup(raw);
+      if(!(fd instanceof PDFLib.PDFDict))continue;
+      stats.fontsTotal++;
+      if(!opFontIsEmbedded(fd,ctx))stats.fontsNotEmbedded++;
+    }
+  }
   const pat=res.lookup(opName('Pattern'));
   if(pat instanceof PDFLib.PDFDict){
     for(const[,raw]of pat.entries()){
@@ -97,6 +114,45 @@ function opWalkResources(res,ctx,stats,visited){
       if(!(pt instanceof PDFLib.PDFNumber)||pt.asNumber()!==1)continue;
       opWalkResources(s.dict.lookup(opName('Resources')),ctx,stats,visited);
     }
+  }
+}
+
+// "Embebida": para /Type0 se mira el FontDescriptor del primer
+// DescendantFonts (fuente CID real); /Type3 no requiere FontFile (los
+// glifos van inline en el propio PDF); el resto necesita FontFile,
+// FontFile2 o FontFile3 en su FontDescriptor — sin él es una de las 14
+// fuentes base u otra fuente del sistema del generador, no incluida en el
+// archivo.
+function opFontIsEmbedded(fontDict,ctx){
+  const subtype=fontDict.get(opName('Subtype'));
+  if(subtype===opName('Type3'))return true;
+  let descSource=fontDict;
+  if(subtype===opName('Type0')){
+    const desc=ctx.lookup(fontDict.get(opName('DescendantFonts')));
+    if(!(desc instanceof PDFLib.PDFArray)||desc.size()===0)return false;
+    const cid=ctx.lookup(desc.get(0));
+    if(!(cid instanceof PDFLib.PDFDict))return false;
+    descSource=cid;
+  }
+  const fdesc=ctx.lookup(descSource.get(opName('FontDescriptor')));
+  if(!(fdesc instanceof PDFLib.PDFDict))return false;
+  return fdesc.has(opName('FontFile'))||fdesc.has(opName('FontFile2'))||fdesc.has(opName('FontFile3'));
+}
+
+// Anotaciones con apariencia visible (/AP) que el render excluye siempre
+// (annotationMode DISABLE, pdf-source.js) — no cuenta /Link, /Popup ni
+// /Widget: por defecto no pintan nada, así que excluirlas no cambia lo que
+// se compara.
+function opCountNonPrintableAnnots(pageNode,ctx,stats){
+  const annots=ctx.lookup(pageNode.get(opName('Annots')));
+  if(!(annots instanceof PDFLib.PDFArray))return;
+  for(let i=0;i<annots.size();i++){
+    const a=ctx.lookup(annots.get(i));
+    if(!(a instanceof PDFLib.PDFDict))continue;
+    const subtype=a.get(opName('Subtype'));
+    if(subtype===opName('Link')||subtype===opName('Popup')||subtype===opName('Widget'))continue;
+    const ap=ctx.lookup(a.get(opName('AP')));
+    if(ap instanceof PDFLib.PDFDict)stats.nonPrintableAnnots++;
   }
 }
 
@@ -115,14 +171,21 @@ function opPageResources(node,ctx){
 // `opts.onlyGroup` solo inyecta el grupo de página (uso diagnóstico).
 async function rewritePdfForOverprint(bytes,opts){
   opts=opts||{};
-  const stats={opStates:0,translated:0,keptBlend:0,opm0:0,knockout:0,groupInjected:false,pages:0,ms:0};
+  const stats={opStates:0,translated:0,keptBlend:0,opm0:0,knockout:0,groupInjected:false,pages:0,ms:0,
+    encrypted:false,hasOutputIntent:false,nonPrintableAnnots:0,fontsTotal:0,fontsNotEmbedded:0};
   const t0=performance.now();
   const doc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true,updateMetadata:false,throwOnInvalidObject:false});
   const ctx=doc.context;
+  stats.encrypted=!!doc.isEncrypted;
+  const oi=ctx.lookup(doc.catalog.get(opName('OutputIntents')));
+  stats.hasOutputIntent=oi instanceof PDFLib.PDFArray&&oi.size()>0;
   const visited=new Set();
   for(const page of doc.getPages()){
     stats.pages++;
-    if(!opts.onlyGroup)opWalkResources(opPageResources(page.node,ctx),ctx,stats,visited);
+    if(!opts.onlyGroup){
+      opWalkResources(opPageResources(page.node,ctx),ctx,stats,visited);
+      opCountNonPrintableAnnots(page.node,ctx,stats);
+    }
     if(!page.node.has(opName('Group'))){
       page.node.set(opName('Group'),ctx.obj({S:'Transparency',CS:'DeviceRGB',I:true}));
       stats.groupInjected=true;

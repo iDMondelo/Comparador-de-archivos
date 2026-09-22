@@ -21,6 +21,7 @@ async function detectTextMode(source){
 }
 
 function renderTextIndicator(which){
+  if(typeof renderReliabilityIndicator==='function')renderReliabilityIndicator(which);
   const source=which==='A'?sourceA:sourceB;
   const el=document.getElementById('textIndicator'+which);
   const btn=document.getElementById('btnForceOcr'+which);
