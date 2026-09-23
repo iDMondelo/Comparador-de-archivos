@@ -115,6 +115,7 @@ function vpBuildDebugBoxes(which){
   g.setAttribute('class','vp-debug-boxes'+(vpDebugBoxesOn?' on':''));
   if(index){
     for(const el of index.elements){
+      if(el.nodeCount===37)console.log('[diag-transform] caja de depuración',{id:el.id,bbox:el.bbox,center:el.center});
       const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
       r.setAttribute('x',el.bbox.x);r.setAttribute('y',el.bbox.y);
       r.setAttribute('width',el.bbox.w);r.setAttribute('height',el.bbox.h);
@@ -149,6 +150,11 @@ async function vpSetupStage(which){
   const overlay=vpEl('vpOverlay'+which);
   const wrap=vpEl('vpStageWrap'+which);
   const rendered=await renderPdfPage(source.pdfDoc,source.pageNum,source.dpi);
+  console.log('[diag-transform] vpSetupStage',{which,
+    source_naturalWidth:source.naturalWidth,source_naturalHeight:source.naturalHeight,
+    rendered_naturalWidth:rendered.naturalWidth,rendered_naturalHeight:rendered.naturalHeight,
+    source_viewportTransform:source.viewport&&source.viewport.transform,
+    rendered_viewportTransform:rendered.viewport&&rendered.viewport.transform});
   canvas.width=rendered.naturalWidth;canvas.height=rendered.naturalHeight;
   const cctx=canvas.getContext('2d');
   cctx.drawImage(rendered.drawable,0,0);
@@ -255,6 +261,8 @@ function vpSelectElement(which,el){
   const nodeIdx=vpActivePair===1?vpAnchorNodeIdx:vpAnchorNodeIdx2;
   sel[which]=el;mode[which]='center';nodeIdx[which]=null;
   vpNodePickActive[which]=false;
+  console.log('[diag-transform] vpSelectElement',{which,id:el.id,nodeCount:el.nodeCount,bbox:el.bbox,center:el.center,
+    ctm:el._dbgCtm,combinedMatrix:el._dbgCombinedMatrix,viewportTransform:el._dbgViewportTransform});
   vpDrawPersistent(which,el,vpActivePair);
   vpShowAnchorChoice(which);
   vpUpdateConfirmState();
@@ -430,6 +438,7 @@ function vpShowCandidates(list){
   const panel=vpEl('vpCandidatesPanel'),listEl=vpEl('vpCandidatesList');
   if(!list.length){panel.style.display='none';listEl.innerHTML='';return;}
   panel.style.display='block';
+  list.forEach((c,i)=>console.log('[diag-transform] candidato en lista',{idx:i,score:c.score,id:c.el.id,nodeCount:c.el.nodeCount,center:c.el.center,bbox:c.el.bbox}));
   listEl.innerHTML=list.map((c,i)=>
     `<div class="region-row" data-idx="${i}">`+
     `<span class="region-badge">${i+1}</span>`+

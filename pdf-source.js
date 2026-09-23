@@ -128,6 +128,9 @@ async function renderPdfPage(pdfDoc,pageNum,dpi,{offsetPt,canvasW,canvasH}={}){
   const offsetX=offsetPt?offsetPt.x*scale:0;
   const offsetY=offsetPt?offsetPt.y*scale:0;
   const viewport=page.getViewport({scale,offsetX,offsetY});
+  console.log('[diag-transform] renderPdfPage viewport',{pageNum,dpi,offsetX,offsetY,
+    scale:viewport.scale,width:viewport.width,height:viewport.height,
+    rotation:viewport.rotation,transform:viewport.transform});
   const w=canvasW??Math.round(viewport.width);
   const h=canvasH??Math.round(viewport.height);
   checkRenderSize(w,h);

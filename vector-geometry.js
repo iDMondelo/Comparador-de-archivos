@@ -245,6 +245,9 @@ async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
       }
       if(isPaint&&pendingPath.subpaths.length){
         const el=buildPdfElement(nextId,pendingPath.subpaths,pendingPath.isText);
+        el._dbgCtm=ctm.slice();
+        el._dbgCombinedMatrix=combinedMatrix();
+        el._dbgViewportTransform=viewport.transform;
         if(!clip||bboxIntersects(el.bbox,clip)){elements.push(el);nextId++;}
         else clipDiscardedCount++;
       }
@@ -297,10 +300,12 @@ async function extractPdfGeometry(pdfDoc,pageNum,viewport,opts){
         if(op===OPS.moveTo){
           if(acc)pushFinalizedSubpath(subpaths,acc);
           const x=coords[j++],y=coords[j++];
+          console.debug('[diag-transform] moveTo raw',{x,y,ctm:ctm.slice()});
           const p=mapPt(x,y);
           acc=newSubpathAccum(p[0],p[1]);
         }else if(op===OPS.lineTo){
           const x=coords[j++],y=coords[j++];
+          console.debug('[diag-transform] lineTo raw',{x,y,ctm:ctm.slice()});
           if(acc)accumLine(acc,mapPt(x,y));
         }else if(op===OPS.curveTo){ // 'c': x1 y1 x2 y2 x3 y3 — curva completa
           const c1=mapPt(coords[j],coords[j+1]);j+=2;
@@ -533,6 +538,11 @@ function hitTestPoint(index,x,y,includeOutlinedText){
 async function buildVectorIndex(source,opts){
   const{onProgress,signal,label}=opts||{};
   const cacheKey=`${source.dpi}|${source.pageNum||1}`;
+  console.log('[diag-transform] buildVectorIndex',{label,
+    cacheHit:!!(source._vectorIndex&&source._vectorIndex.cacheKey===cacheKey),
+    cacheKey,dpi:source.dpi,pageNum:source.pageNum,
+    naturalWidth:source.naturalWidth,naturalHeight:source.naturalHeight,
+    viewportTransform:source.viewport&&source.viewport.transform});
   if(source._vectorIndex&&source._vectorIndex.cacheKey===cacheKey){
     if(onProgress)onProgress({done:1,total:1});
     return source._vectorIndex;
