@@ -10,6 +10,9 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'22',date:'2026-09-24',changes:[
+    'Barra superior simplificada: el nombre de la herramienta a la izquierda y la marca a la derecha, fija arriba al hacer scroll; el historial de versiones y el contacto siguen en el pie.'
+  ]},
   {version:'21',date:'2026-09-24',changes:[
     'Nueva cabecera: barra superior fija con la marca, la versión y acceso directo a la ayuda y al contacto, y una presentación renovada de la herramienta con sus características clave.'
   ]},
@@ -24,10 +27,6 @@ const VERSION_HISTORY=[
   {version:'18',date:'2026-09-18',changes:[
     'Unifica el render de PDF de las tres fases (vista previa, selector de elemento vectorial y vista final) en una sola función, que excluye siempre las anotaciones del PDF: el icono de una nota de comentario ya no aparece superpuesto al contenido.',
     'El tramado de «no comparable» ya no aparece en la vista previa ni en el selector de elemento: solo se dibuja en la vista final tras alinear, y ahora se ve en ambos archivos por igual cuando uno tiene más página que el otro (antes esa franja ni se renderizaba en modo escala bloqueada).'
-  ]},
-  {version:'17',date:'2026-09-17',changes:[
-    'La resolución de análisis queda fija en 600 ppp (se retira el selector de PPP): antes de comparar, la herramienta estima la memoria y comprueba el límite de canvas de tu navegador, y avisa o bloquea el análisis si el archivo es demasiado grande para procesarse con seguridad.',
-    'Nueva barra de progreso por etapas durante el análisis (render, cálculo ΔE, detección de zonas, visualización), con tiempo transcurrido, estimación de tiempo restante y botón para cancelar.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -827,14 +826,10 @@ document.getElementById('btnExportReport').onclick=()=>{
 // ---- avisos de beta / versión / contacto -----------------------------------
 
 function initMetaUI(){
-  document.getElementById('appVersionTag').textContent='v'+APP_VERSION;
   const subject=encodeURIComponent(`ComparadorΔE v${APP_VERSION} - Sugerencia`);
   const mailto=`mailto:contacto@diegomondelo.com?subject=${subject}`;
   document.getElementById('resultsFeedbackLink').href=mailto;
   document.getElementById('footerFeedbackLink').href=mailto;
-  document.getElementById('headerFeedbackLink').href=mailto;
-  // enlaces de la barra superior a un desplegable de ayuda concreto: lo abren al llegar
-  document.querySelectorAll('[data-open-help]').forEach(a=>a.addEventListener('click',()=>{const d=document.querySelector(a.getAttribute('href'));if(d)d.open=true;}));
 }
 initMetaUI();
 
@@ -875,7 +870,6 @@ function onVersionModalKeydown(e){
   if(e.key==='Escape')closeVersionModal();
 }
 
-document.getElementById('appVersionTag').onclick=function(){openVersionModal(this);};
 document.getElementById('footerVersionLink').onclick=function(e){e.preventDefault();openVersionModal(this);};
 versionModalClose.onclick=closeVersionModal;
 versionModalBackdrop.addEventListener('click',e=>{
