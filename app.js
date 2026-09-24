@@ -11,7 +11,8 @@
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
   {version:'23',date:'2026-09-24',changes:[
-    'Nueva ilustración animada en la cabecera: dos revisiones de un arte final con sus diferencias marcadas y una lupa con el detalle vectorial; las píldoras de características estrenan iconos y la última pasa a «Todo en tu navegador».'
+    'Nueva ilustración animada en la cabecera: dos revisiones de un arte final con sus diferencias marcadas y una lupa con el detalle vectorial; las píldoras de características estrenan iconos y la última pasa a «Todo en tu navegador».',
+    'La animación se detiene cuando la cabecera queda fuera de pantalla y mientras se compara o se analiza el texto, y respeta la preferencia de movimiento reducido del sistema.'
   ]},
   {version:'22',date:'2026-09-24',changes:[
     'Barra superior simplificada: el nombre de la herramienta a la izquierda y la marca a la derecha, fija arriba al hacer scroll; el historial de versiones y el contacto siguen en el pie.'
@@ -479,6 +480,21 @@ function onWorkerError(err){
   threshSlider.disabled=false;
 }
 
+// ---- ilustración de la cabecera: pausa de su animación ----------------------
+// Las animaciones CSS del SVG de la cabecera corren en el hilo principal: se
+// pausan (clase cd-pausa, regla incluida en el propio SVG) mientras no se ve
+// o mientras corre una comparación ΔE o el análisis de texto/OCR. Solo cambia
+// esa clase; no interviene en compare() ni en el análisis de texto.
+const heroArtEl=document.querySelector('.cd-ilustracion');
+const heroArtPause={offscreen:false,compare:false,text:false};
+function setHeroArtPaused(reason,on){
+  heroArtPause[reason]=on;
+  if(heroArtEl)heroArtEl.classList.toggle('cd-pausa',heroArtPause.offscreen||heroArtPause.compare||heroArtPause.text);
+}
+if(heroArtEl&&'IntersectionObserver' in window){
+  new IntersectionObserver(entries=>setHeroArtPaused('offscreen',!entries[entries.length-1].isIntersecting)).observe(heroArtEl);
+}
+
 // ---- barra de progreso por etapas (compare()) ------------------------------
 
 function renderCompareProgressDOM(pct,label){
@@ -514,6 +530,7 @@ function updateCompareTimeDisplay(pct){
 }
 
 function showCompareProgress(){
+  setHeroArtPaused('compare',true);
   cancelRequested=false;
   compareStartTime=performance.now();
   compareProgressEl.style.display='block';
@@ -527,11 +544,13 @@ function showCompareProgress(){
 }
 
 function finishCompareProgress(){
+  setHeroArtPaused('compare',false);
   clearInterval(compareTimerId);compareTimerId=null;
   setTimeout(()=>{compareProgressEl.style.display='none';},600);
 }
 
 function hideCompareProgress(){
+  setHeroArtPaused('compare',false);
   clearInterval(compareTimerId);compareTimerId=null;
   compareProgressEl.style.display='none';
 }

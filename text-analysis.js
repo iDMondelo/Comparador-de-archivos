@@ -242,6 +242,7 @@ async function runTextComparison(){
     return;
   }
   btnAnalyzeText.disabled=true;
+  if(typeof setHeroArtPaused==='function')setHeroArtPaused('text',true);
   textDiffPanel.innerHTML='<div class="hint">Analizando texto…</div>';
   try{
     const progressA=makeOcrProgressHandler('A'),progressB=makeOcrProgressHandler('B');
@@ -256,6 +257,7 @@ async function runTextComparison(){
     textDiffPanel.innerHTML='<div class="hint">Error al analizar texto: '+err.message+'</div>';
   }finally{
     btnAnalyzeText.disabled=false;
+    if(typeof setHeroArtPaused==='function')setHeroArtPaused('text',false);
   }
 }
 
