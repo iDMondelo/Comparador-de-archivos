@@ -105,26 +105,14 @@ function formatBytesAuto(bytes){
 // No decide qué hacer con el botón Comparar — eso lo resuelve app.js con el
 // `viability.level` devuelto por computeViability().
 function renderViabilityPanel(el,viability){
-  const{pixels,dimW,dimH,estBytes,availBytes,availSource,conservative,level,ceiling,exceedsCanvasCeiling}=viability;
-  const mpx=(pixels/1_000_000).toFixed(1).replace('.',',');
+  const{estBytes,level,exceedsCanvasCeiling}=viability;
   const lines=[];
   lines.push('Análisis a 600 ppp');
-  lines.push(`Dimensiones: ${dimW.toLocaleString('es')} × ${dimH.toLocaleString('es')} px (${mpx} Mpx)`);
   lines.push(`Memoria estimada: ${formatBytesAuto(estBytes)}`);
-  lines.push(`Memoria disponible: ~${formatBytesAuto(availBytes)} (según el navegador)`);
-  lines.push(`Límite de canvas: ${ceiling.toLocaleString('es')} × ${ceiling.toLocaleString('es')} px — ${exceedsCanvasCeiling?'insuficiente':'suficiente'}`);
-  if(conservative)lines.push('Estimación conservadora: este navegador no informa de la memoria disponible.');
-
   if(exceedsCanvasCeiling){
-    lines.push(`✗ Este archivo excede la capacidad del navegador a 600 ppp (${dimW.toLocaleString('es')}×${dimH.toLocaleString('es')} px supera el límite de canvas de ${ceiling.toLocaleString('es')}×${ceiling.toLocaleString('es')} px).`);
-    lines.push('· Probar en Chrome, que admite canvas mayores que Safari');
-    lines.push('· Cerrar otras pestañas y aplicaciones');
-    lines.push('· Recortar el PDF a la zona de interés antes de compararlo');
+    lines.push('Este archivo es demasiado grande para este navegador a 600 ppp. Prueba en Chrome (admite más resolución que Safari), cierra otras pestañas o recorta el PDF a la zona de interés.');
   }else if(level==='red'){
-    lines.push(`✗ Este archivo excede la capacidad de memoria del navegador a 600 ppp (necesita ~${formatBytesAuto(estBytes)}, disponible ~${formatBytesAuto(availBytes)}).`);
-    lines.push('· Probar en Chrome, que admite canvas mayores que Safari');
-    lines.push('· Cerrar otras pestañas y aplicaciones');
-    lines.push('· Recortar el PDF a la zona de interés antes de compararlo');
+    lines.push('La memoria estimada supera la disponible en este navegador. Puedes forzar el análisis de todos modos, o antes cerrar otras pestañas o probar en Chrome.');
   }else if(level==='amber'){
     lines.push('El análisis es posible pero exigente. Cierra otras pestañas antes de continuar para reducir el riesgo de que el navegador se quede sin memoria.');
   }else{

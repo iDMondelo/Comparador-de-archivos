@@ -589,6 +589,9 @@ vpSetupInteraction('B');
 function updateVectorPickerEntryVisibility(){
   const btn=vpEl('btnOpenVectorPicker');
   if(!btn)return;
-  btn.style.display=(isVectorGeometryAvailable(typeof sourceA!=='undefined'?sourceA:null)&&isVectorGeometryAvailable(typeof sourceB!=='undefined'?sourceB:null))?'inline-flex':'none';
+  const available=isVectorGeometryAvailable(typeof sourceA!=='undefined'?sourceA:null)&&isVectorGeometryAvailable(typeof sourceB!=='undefined'?sourceB:null);
+  btn.style.display=available?'inline-flex':'none';
+  const guide=vpEl('alignGuideText');
+  if(guide)guide.style.display=available?'none':'block';
 }
 vpEl('btnOpenVectorPicker').onclick=function(){openVectorPicker(this);};

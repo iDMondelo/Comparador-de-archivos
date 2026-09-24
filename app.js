@@ -10,23 +10,25 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'27',date:'2026-09-24',changes:[
+    'Más limpieza antes de comparar: se quita el resumen de escala/giro/desplazamiento y la etiqueta «Ajustes de comparación», y el umbral ΔE pasa a una barra centrada de la mitad de ancho.',
+    'El panel de viabilidad se reduce a resolución, memoria estimada y el aviso final; cuando el archivo no es viable, el aviso recomienda probar otro navegador o recortar el PDF en vez de decir que no se puede.'
+  ]},
+  {version:'26',date:'2026-09-24',changes:[
+    'Limpieza de «Opciones de render»: se quita el desplegable y el texto de diagnóstico de sobreimpresión — antes de comparar solo se ve el umbral ΔE, «Análisis a 600 ppp» y la casilla «Simular sobreimpresión».',
+    'El autoactivado de la simulación de sobreimpresión no cambia: sigue marcándose solo cuando el archivo realmente la tiene.'
+  ]},
+  {version:'25',date:'2026-09-24',changes:[
+    'La alineación pasa a hacerse solo por elemento vectorial: se quita el marcado manual de puntos a clic (arrastrar un punto ya puesto y ajustarlo con el teclado se sigue pudiendo hacer igual que antes) y el botón se renombra a «Alinear archivos».',
+    'Para archivos que no son PDF/.ai en ambos lados, la sección de alineación muestra ahora un aviso de que no está disponible para ese tipo de archivo, en vez de la explicación de los dos métodos.'
+  ]},
+  {version:'24',date:'2026-09-24',changes:[
+    'Vista de alineación simplificada: al cargar ambos archivos ahora solo se ve, centrado, el botón de alineación (o un aviso de una línea si no está disponible para ese tipo de archivo), sin el resto de explicaciones.',
+    'Las cajas de previsualización de cada archivo son más altas y cada una lleva ahora su propia leyenda de zoom («Rueda: zoom · Arrastrar: desplazar · Doble clic: restablecer»).'
+  ]},
   {version:'23',date:'2026-09-24',changes:[
     'Nueva ilustración animada en la cabecera: dos revisiones de un arte final con sus diferencias marcadas y una lupa con el detalle vectorial; las píldoras de características estrenan iconos y la última pasa a «Todo en tu navegador».',
     'La animación se detiene cuando la cabecera queda fuera de pantalla y mientras se compara o se analiza el texto, y respeta la preferencia de movimiento reducido del sistema.'
-  ]},
-  {version:'22',date:'2026-09-24',changes:[
-    'Barra superior simplificada: el nombre de la herramienta a la izquierda y la marca a la derecha, fija arriba al hacer scroll; el historial de versiones y el contacto siguen en el pie.'
-  ]},
-  {version:'21',date:'2026-09-24',changes:[
-    'Nueva cabecera: barra superior fija con la marca, la versión y acceso directo a la ayuda y al contacto, y una presentación renovada de la herramienta con sus características clave.'
-  ]},
-  {version:'20',date:'2026-09-24',changes:[
-    'Rediseño visual: contenedor más ancho para aprovechar pantallas de escritorio grandes, cabecera con mayor jerarquía tipográfica y los ajustes de render y umbral ΔE agrupados junto a la sección de alineación en vez de separados por ella.',
-    'Las explicaciones de cada método de alineación pasan a un desplegable para dejar el área de trabajo (marcado de puntos, badges, canvases) más despejada; el botón «Comparar» queda fijo al pie de pantalla mientras se hace scroll.'
-  ]},
-  {version:'19',date:'2026-09-22',changes:[
-    'Semáforo de fiabilidad junto al nombre de cada archivo PDF: verde/ámbar/rojo según perfil de salida declarado, cifrado, anotaciones con apariencia visible excluidas del render, sobreimpresión con OPM 0 y fuentes no embebidas en texto vivo — con el motivo en una línea al pasar el cursor o pulsar.',
-    'Todo se lee del mismo parseo que ya hacía la detección de sobreimpresión al cargar cada archivo, sin analizarlo una segunda vez.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;

@@ -110,16 +110,17 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .settings-details .chevron{flex-shrink:0;color:var(--ink-faint);transition:transform .15s}
 .settings-details[open] .chevron{transform:rotate(180deg)}
 .settings-details>:not(summary){margin-top:var(--space-2)}
-.drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-4);text-align:center;cursor:pointer;transition:background .15s,border-color .15s;position:relative;background:var(--surface)}
+.drop-zone{display:flex;align-items:center;justify-content:center;gap:var(--space-3);border:1.5px dashed var(--border-strong);border-radius:var(--radius-xl);padding:var(--space-3) var(--space-4);text-align:left;cursor:pointer;transition:background .15s,border-color .15s;position:relative;background:var(--surface)}
 .drop-zone:hover{background:var(--surface-raised)}
 .drop-zone.drag-over{background:var(--surface-raised);border-color:var(--accent)}
 .drop-zone.filled{border-style:solid;background:var(--surface-raised)}
 .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.drop-zone .upload-icon{color:var(--ink-faint)}
+.drop-zone .upload-icon{flex:none;color:var(--ink-faint)}
 .drop-zone.filled .upload-icon{color:var(--accent)}
-.drop-zone .label{font-size:13px;color:var(--ink-dim);margin-top:var(--space-2)}
-.drop-zone .name{font-family:var(--font-mono);font-size:12px;color:var(--ink);margin-top:var(--space-1)}
-.drop-zone .name-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:var(--space-1)}
+.drop-zone-text{min-width:0}
+.drop-zone .label{font-size:13px;color:var(--ink-dim)}
+.drop-zone .name{font-family:var(--font-mono);font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drop-zone .name-row{display:flex;align-items:center;justify-content:flex-start;gap:6px;margin-top:2px;min-width:0}
 .drop-zone .name-row .name{margin-top:0}
 .reliability-dot{width:9px;height:9px;border-radius:50%;flex:none;cursor:default}
 .reliability-dot[hidden]{display:none}
@@ -127,6 +128,9 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .reliability-dot.amber{background:var(--reliability-amber)}
 .reliability-dot.red{background:var(--reliability-red)}
 .reliability-tap{font-size:var(--caption-size);color:var(--ink-dim);white-space:nowrap}
+.reliability-legend{display:flex;align-items:center;justify-content:center;gap:var(--space-4);margin-top:var(--space-3);font-size:var(--caption-size);color:var(--ink-faint)}
+.reliability-legend .item{display:flex;align-items:center;gap:var(--space-1)}
+.reliability-legend .reliability-dot{cursor:default}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4)}
 .grid-upload{gap:var(--space-4)}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-5) 0}
@@ -146,7 +150,7 @@ canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .zoom-box canvas{display:block;border-radius:var(--radius-xs)}
 .zoom-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);padding:4px 4px 0;line-height:1.6}
 .zoom-info b{color:var(--ink)}
-.thresh-row{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-3) 0}
+.thresh-row{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-3) auto;width:50%;min-width:260px}
 .thresh-row label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);white-space:nowrap;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
 .thresh-row input[type=range]{flex:1;accent-color:var(--accent)}
 .thresh-row span{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;color:var(--ink);min-width:28px;text-align:right}
@@ -173,20 +177,17 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .note-box{font-size:var(--caption-size);color:var(--ink-dim);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3);margin:var(--space-3) 0;line-height:1.6}
 #alignSection{margin-bottom:var(--space-4)}
 #alignSection .title{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-1);line-height:1.5}
-.align-method{margin-bottom:var(--space-2)}
-.align-method-label{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:4px}
-.align-method-recommended .align-method-label{color:var(--primary-deep)}
-.align-method-desc{font-size:var(--caption-size);color:var(--ink-dim);line-height:1.4;margin:4px 0 0}
-.align-method-alt .align-method-desc{color:var(--ink-mute)}
 .align-format-notice{font-size:var(--caption-size);line-height:1.4;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-2) 0}
 .align-format-notice.positive{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
 .align-format-notice.warn{background:var(--canvas-soft);color:var(--accent-gold-deep)}
 .align-format-notice.warn-strong{background:var(--canvas-soft);color:var(--accent-gold-deep);font-weight:600}
 .align-format-notice.danger{background:var(--status-danger-bg);color:var(--status-danger-deep);font-weight:600}
-.align-controls-hint{font-size:var(--micro-size);color:var(--ink-faint);margin-top:var(--space-2)}
+.align-controls-hint{font-size:var(--micro-size);color:var(--ink-faint);margin-top:var(--space-2);text-align:center}
 .align-controls-hint .sep{margin:0 var(--space-2);color:var(--ink-mute)}
-.align-guide{font-size:var(--caption-size);font-weight:600;color:var(--primary-deep);margin-bottom:var(--space-2);line-height:1.5}
-.align-canvas-wrap{position:relative;overflow:hidden;height:220px;border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center}
+.align-guide{font-size:var(--caption-size);font-weight:600;color:var(--ink-mute);margin-bottom:var(--space-2);line-height:1.5}
+.align-entry-row{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);text-align:center;margin:var(--space-2) 0 var(--space-4)}
+.align-entry-row .align-guide{margin:0}
+.align-canvas-wrap{position:relative;overflow:hidden;height:min(52vh,480px);border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center}
 .align-canvas{display:block;cursor:none}
 .align-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);margin:var(--space-1) 0 var(--space-3)}
 .ref-markers{position:absolute;inset:0}
@@ -204,6 +205,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .ref-marker:hover .rm-delete,.ref-marker:focus-within .rm-delete{opacity:1}
 .rm-delete:hover{background:var(--sev-high)}
 .align-transform-summary{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink);background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-1) 0;display:none}
+/* Oculta (rediseño pre-comparar): align.js sigue calculando y "mostrando" este
+   resumen igual que hoy, solo se oculta visualmente. */
+#alignTransformSummary{display:none!important}
 .align-transform-warn{font-size:var(--caption-size);color:var(--accent-gold-deep);margin:0 0 var(--space-2);display:none}
 
 /* ---- capa de entrada PDF/.ai: selector de página ---- */
@@ -213,6 +217,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .text-indicator{font-size:var(--caption-size);padding:2px 10px;border-radius:var(--radius-pill);display:inline-block}
 .text-indicator.live{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
 .text-indicator.traced{background:var(--canvas-tint);color:var(--accent-gold-deep)}
+/* Ocultas en la vista inicial de carga (rediseño alineación): text-analysis.js
+   sigue calculando y alternando su estado normalmente, solo se ocultan. */
+.text-indicator,#btnForceOcrA,#btnForceOcrB{display:none!important}
 
 /* ---- análisis de texto: pestaña Texto y diff por palabras ---- */
 .ocr-progress{display:flex;align-items:center;gap:var(--space-2);margin:var(--space-2) 0;font-size:var(--caption-size);color:var(--ink-dim)}
@@ -313,25 +320,22 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .vp-second-element-row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)}
 
 /* ---- bloqueo de escala 1:1 (archivos con dimensiones físicas) ---- */
-.scale-lock-row{display:none;align-items:center;gap:var(--space-3);flex-wrap:wrap;font-size:var(--caption-size);margin:0 0 var(--space-2)}
-.scale-lock-state{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius-pill);padding:3px 12px;background:var(--primary-bg-subdued-hover);color:var(--primary-deep);font-weight:var(--weight-semibold);line-height:1.4}
-.scale-lock-state svg{flex-shrink:0}
-.scale-lock-state .lock-open{display:none}
-.scale-lock-state.unlocked{background:var(--canvas-tint);color:var(--accent-gold-deep)}
-.scale-lock-state.unlocked .lock-closed{display:none}
-.scale-lock-state.unlocked .lock-open{display:block}
-.scale-lock-row label{display:inline-flex;align-items:center;gap:6px;color:var(--ink-dim);cursor:pointer}
-.scale-lock-row input[type=checkbox]{accent-color:var(--accent)}
+.scale-lock-row{display:none;align-items:flex-start;gap:6px;max-width:420px;font-size:var(--micro-size);line-height:1.5;color:var(--ink-faint);cursor:pointer}
+.scale-lock-row:hover{color:var(--ink-dim)}
+.scale-lock-row .scale-lock-state{display:inline-flex;align-items:center;color:inherit;height:1.5em}
+.scale-lock-row .scale-lock-state svg{flex-shrink:0}
+.scale-lock-row .scale-lock-state .lock-open{display:none}
+.scale-lock-row .scale-lock-state.unlocked .lock-closed{display:none}
+.scale-lock-row .scale-lock-state.unlocked .lock-open{display:block}
+.scale-lock-row input[type=checkbox]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 
 /* ---- opciones de render: simulación de sobreimpresión (overprint.js) ---- */
-.render-options-row{display:none;align-items:baseline;gap:var(--space-2) var(--space-3);flex-wrap:wrap;font-size:var(--caption-size);color:var(--ink-dim);margin:calc(var(--space-2) * -1) 0 var(--space-4);line-height:1.5}
-.render-options-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
+.render-options-row{display:none;flex-direction:column;align-items:flex-start;gap:6px;font-size:var(--caption-size);margin:0 0 var(--space-4)}
 .render-options-row label{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-weight:var(--weight-semibold);cursor:pointer;white-space:nowrap}
 .render-options-row input[type=checkbox]{accent-color:var(--accent)}
 .render-options-row input[type=checkbox]:disabled+span{color:var(--ink-mute)}
-.render-options-info{color:var(--ink-dim)}
-.render-options-info:empty,.render-options-warn:empty{display:none}
-.render-options-warn{flex-basis:100%;color:var(--accent-gold-deep)}
+.render-options-info{color:var(--ink-mute)}
+.render-options-info:empty{display:none}
 
 /* ---- indicador de método de alineación activo ---- */
 .align-method-badge{font-size:var(--micro-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-soft);border-radius:var(--radius-pill);padding:2px 10px;margin-bottom:var(--space-2);display:inline-block}
@@ -390,7 +394,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="hero-text">
     <div class="hero-rule" aria-hidden="true"></div>
     <h1 class="hero-title">Cada cambio, <em>a la vista.</em></h1>
-    <p class="hero-sub">Compara dos revisiones de un arte final y localiza cada diferencia de color y de texto. Todo ocurre en tu navegador.</p>
+    <p class="hero-sub">Compara archivos vectoriales e imágenes para localizar las diferencias de forma rápida.</p>
     <ul class="hero-chips">
       <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M4 7v13a2 2 0 0 0 2 2h9"/></svg>PDF · AI · JPG · PNG</li>
       <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="6" fill="currentColor"/><circle cx="15" cy="12" r="6"/></svg>ΔE 2000</li>
@@ -505,14 +509,16 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 
 <div class="grid2 grid-upload">
   <div>
-    <div class="field-label">Imagen A — original</div>
+    <div class="field-label">Archivo A — original</div>
     <div class="drop-zone" id="dropA">
       <input type="file" accept=".pdf,.ai,image/*" id="fileA">
-      <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-      <div class="label">Arrastra o haz clic</div>
-      <div class="name-row">
-        <div class="name" id="nameA">ningún archivo</div>
-        <span class="reliability-dot" id="reliabilityDotA" hidden></span>
+      <svg class="upload-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      <div class="drop-zone-text">
+        <div class="label">Arrastra o haz clic</div>
+        <div class="name-row">
+          <div class="name" id="nameA">ningún archivo</div>
+          <span class="reliability-dot" id="reliabilityDotA" hidden></span>
+        </div>
       </div>
     </div>
     <div class="pdf-controls" id="pdfControlsA">
@@ -530,14 +536,16 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </div>
   </div>
   <div>
-    <div class="field-label">Imagen B — MODIFICADO</div>
+    <div class="field-label">Archivo B — MODIFICADO</div>
     <div class="drop-zone" id="dropB">
       <input type="file" accept=".pdf,.ai,image/*" id="fileB">
-      <svg class="upload-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-      <div class="label">Arrastra o haz clic</div>
-      <div class="name-row">
-        <div class="name" id="nameB">ningún archivo</div>
-        <span class="reliability-dot" id="reliabilityDotB" hidden></span>
+      <svg class="upload-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      <div class="drop-zone-text">
+        <div class="label">Arrastra o haz clic</div>
+        <div class="name-row">
+          <div class="name" id="nameB">ningún archivo</div>
+          <span class="reliability-dot" id="reliabilityDotB" hidden></span>
+        </div>
       </div>
     </div>
     <div class="pdf-controls" id="pdfControlsB">
@@ -556,31 +564,29 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   </div>
 </div>
 
+<div class="reliability-legend">
+  <span class="item"><span class="reliability-dot green"></span>Compatible</span>
+  <span class="item"><span class="reliability-dot amber"></span>Aceptable</span>
+  <span class="item"><span class="reliability-dot red"></span>No ideal</span>
+</div>
+
 <div id="alignSection" style="display:none">
-  <div class="title">Alineación — opcional</div>
-  <div class="align-method-badge" id="alignMethodBadge"></div>
-  <div class="scale-lock-row" id="scaleLockRow">
-    <span class="scale-lock-state" id="scaleLockState">
-      <svg class="lock-closed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      <svg class="lock-open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.7-1.5"/></svg>
+  <div class="title" style="display:none">Alineación — opcional</div>
+  <div class="align-method-badge" id="alignMethodBadge" style="display:none"></div>
+
+  <div class="align-entry-row">
+    <button class="action primary" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear archivos</button>
+    <div class="align-guide" id="alignGuideText">Alineación no disponible: este método solo funciona cuando ambos archivos son PDF o .ai.</div>
+    <label class="scale-lock-row" id="scaleLockRow">
+      <span class="scale-lock-state" id="scaleLockState">
+        <svg class="lock-closed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <svg class="lock-open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.7-1.5"/></svg>
+      </span>
       <span id="scaleLockText"></span>
-    </span>
-    <label><input type="checkbox" id="scaleLockToggle"> Desbloquear escala (solo si sabes que un archivo fue reescalado)</label>
+      <input type="checkbox" id="scaleLockToggle">
+    </label>
   </div>
-  <button class="action" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear por elemento vectorial…</button>
-  <details class="settings-details" open>
-    <summary>¿Cómo elegir el método de alineación?<span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
-    <div class="align-method align-method-recommended">
-      <div class="align-method-label">Método recomendado</div>
-      <p class="align-method-desc">Precisión exacta: se ancla a la geometría real del archivo. Disponible en PDF y .AI.</p>
-    </div>
-    <div class="align-method align-method-alt">
-      <div class="align-method-label">Método alternativo</div>
-      <p class="align-method-desc">Puntos de referencia manuales, para cualquier formato. La precisión depende de dónde se marquen — ajusta con las flechas del teclado.</p>
-    </div>
-    <div class="align-format-notice" id="alignFormatNotice"></div>
-  </details>
-  <div class="align-guide" id="alignGuideText">Si vas a alinear: punto 1 en la imagen A</div>
+
   <div class="grid2">
     <div>
       <div class="align-canvas-wrap" id="alignWrapA">
@@ -589,6 +595,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <div class="hover-marker" id="hoverMarkerA"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
       </div>
       <div class="align-info" id="refAInfo">Sin puntos marcados</div>
+      <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
     </div>
     <div>
       <div class="align-canvas-wrap" id="alignWrapB">
@@ -597,26 +604,17 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <div class="hover-marker" id="hoverMarkerB"><div class="rm-line rm-h"></div><div class="rm-line rm-v"></div><div class="rm-circle"></div></div>
       </div>
       <div class="align-info" id="refBInfo">Sin puntos marcados</div>
+      <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
     </div>
   </div>
   <div class="align-transform-summary" id="alignTransformSummary"></div>
   <div class="align-transform-warn" id="alignTransformWarn"></div>
   <button class="action" id="btnResetRef"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 16v-4h4"/></svg> Restablecer alineación</button>
-  <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
 </div>
 
-<div class="field-label">Ajustes de comparación</div>
-<details class="settings-details" open>
-  <summary>Opciones de render<span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
-  <div class="render-options-row" id="renderOptionsRow" style="display:none">
-    <span class="render-options-label">Resolución</span>
-    <span class="render-options-info" id="analysisResolutionInfo"></span>
-    <span class="render-options-label">Render</span>
-    <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
-    <span class="render-options-info" id="overprintInfo"></span>
-    <span class="render-options-warn" id="overprintWarn"></span>
-  </div>
-</details>
+<div class="render-options-row" id="renderOptionsRow" style="display:none">
+  <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
+</div>
 <div class="thresh-row">
   <label>Umbral ΔE:</label>
   <input type="range" id="thresh" min="1" max="30" value="1" step="1">

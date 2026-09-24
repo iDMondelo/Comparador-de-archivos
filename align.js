@@ -1,8 +1,11 @@
 // ============================================================================
-// align.js — alineación manual por puntos de referencia. Capa de entrada, no
+// align.js — puntos de referencia para la alineación. Capa de entrada, no
 // forma parte del motor de comparación. Soporta hasta 2 puntos por imagen:
 // 0/1 punto mantiene el comportamiento original (solo traslación); con 2
-// puntos por lado se calcula además escala y giro (ver similarity.js).
+// puntos por lado se calcula además escala y giro (ver similarity.js). Los
+// puntos los coloca vector-picker.js (setPointsFromVector); este archivo solo
+// los renderiza como marcas arrastrables/ajustables con el teclado (nudge.js)
+// — ya no hay clic manual sobre el canvas para crear un punto nuevo.
 // ============================================================================
 
 const alignSection=document.getElementById('alignSection');
@@ -16,7 +19,6 @@ const alignZoomBox=document.getElementById('alignZoomBox');
 const alignZoomCanvas=document.getElementById('alignZoomCanvas');
 const azctx=alignZoomCanvas.getContext('2d');
 const alignZoomInfo=document.getElementById('alignZoomInfo');
-const alignGuideEl=document.getElementById('alignGuideText');
 const alignTransformSummaryEl=document.getElementById('alignTransformSummary');
 const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
@@ -295,16 +297,6 @@ function updateRefInfo(which){
   el.textContent=formatPointsInfo(pts);
 }
 
-function updateAlignGuide(){
-  let msg;
-  if(!pointsA[0])msg='Si vas a alinear: punto 1 en la imagen A';
-  else if(!pointsB[0])msg='Siguiente: punto 1 en la imagen B';
-  else if(!pointsA[1])msg='Siguiente: punto 2 en la imagen A — opcional; con 1 punto ya se corrige el desplazamiento, el segundo añade escala y giro';
-  else if(!pointsB[1])msg='Siguiente: punto 2 en la imagen B';
-  else msg='Alineación completa — escala, giro y desplazamiento corregidos';
-  alignGuideEl.textContent=msg;
-}
-
 function formatEs(n,decimals){
   return n.toFixed(decimals).replace('.',',');
 }
@@ -364,7 +356,6 @@ function updateAlignMethodBadge(){
 function refreshAfterPointsChange(which){
   updateRefInfo(which);
   syncRefGlobals();
-  updateAlignGuide();
   updateTransformSummary();
   activeAlignMethod=(pointsA[0]||pointsB[0])?'manual':'pagebox';
   updateAlignMethodBadge();
@@ -385,15 +376,6 @@ function setPointsFromVector(pts){
   refreshAfterPointsChange('A');refreshAfterPointsChange('B');
   activeAlignMethod='vector';
   updateAlignMethodBadge();
-}
-
-function placeNextPoint(which,n){
-  const pts=which==='A'?pointsA:pointsB;
-  const idx=pts.findIndex(p=>!p);
-  if(idx===-1)return; // los 2 puntos de este lado ya están colocados
-  pts[idx]=n;
-  positionMarkerEl(which,idx);
-  refreshAfterPointsChange(which);
 }
 
 function deletePoint(which,idx){
@@ -518,13 +500,7 @@ window.addEventListener('mouseup',e=>{
   }
   if(!alignDrag)return;
   const{which,moved}=alignDrag;
-  if(!moved){
-    const canvas=alignCanvasEls[which];
-    const n=alignEventToNatural(e,canvas);
-    placeNextPoint(which,n);
-  }else{
-    alignCanvasEls[which].style.cursor='';
-  }
+  if(moved)alignCanvasEls[which].style.cursor='';
   alignDrag=null;
 });
 
@@ -578,7 +554,6 @@ function resetRefPoints(){
   refAInfo.textContent='Sin puntos marcados';
   refBInfo.textContent='Sin puntos marcados';
   syncRefGlobals();
-  updateAlignGuide();
   updateTransformSummary();
   activeAlignMethod=(typeof sourceA!=='undefined'&&sourceA&&typeof sourceB!=='undefined'&&sourceB)?'pagebox':'none';
   updateAlignMethodBadge();

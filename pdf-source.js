@@ -170,27 +170,13 @@ function resetPdfControls(which){
 
 // Indicador de solo lectura junto al interruptor de sobreimpresión (misma
 // fila, #renderOptionsRow, cuya visibilidad la sigue gobernando por completo
-// overprint.js — aquí solo se rellena el texto). Muestra las dimensiones ya
-// renderizadas a ANALYSIS_DPI de cada fuente PDF/.ai cargada; si hay un
-// archivo ráster junto a un PDF, o si A y B difieren de tamaño, se listan
-// ambas por separado.
+// overprint.js — aquí solo se rellena el texto): la resolución fija de
+// análisis, sin desglose de dimensiones por archivo.
 function updateAnalysisResolutionIndicator(){
   if(!analysisResolutionInfoEl)return;
   const A=typeof sourceA!=='undefined'?sourceA:null,B=typeof sourceB!=='undefined'?sourceB:null;
-  const pdfSources=[['A',A],['B',B]].filter(([,s])=>s&&s.pdfDoc);
-  if(!pdfSources.length){analysisResolutionInfoEl.textContent='';return;}
-  const sameDims=A&&B&&A.naturalWidth===B.naturalWidth&&A.naturalHeight===B.naturalHeight;
-  if(pdfSources.length===2&&sameDims){
-    analysisResolutionInfoEl.textContent=`Análisis a ${ANALYSIS_DPI} ppp — ${A.naturalWidth.toLocaleString('es')} × ${A.naturalHeight.toLocaleString('es')} px`;
-    return;
-  }
-  const parts=[['A',A],['B',B]].map(([label,s])=>{
-    if(!s)return null;
-    return s.pdfDoc
-      ?`${label}: ${s.naturalWidth.toLocaleString('es')} × ${s.naturalHeight.toLocaleString('es')} px (${ANALYSIS_DPI} ppp)`
-      :`${label}: ${s.naturalWidth.toLocaleString('es')} × ${s.naturalHeight.toLocaleString('es')} px (nativo, sin ppp)`;
-  }).filter(Boolean);
-  analysisResolutionInfoEl.textContent=`Análisis a ${ANALYSIS_DPI} ppp — `+parts.join(' · ');
+  const anyPdf=(A&&A.pdfDoc)||(B&&B.pdfDoc);
+  analysisResolutionInfoEl.textContent=anyPdf?`Análisis a ${ANALYSIS_DPI} ppp`:'';
 }
 
 // Muestra y rellena los controles de página para una fuente ya cargada.

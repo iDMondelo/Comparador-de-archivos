@@ -24,8 +24,6 @@
 
 const overprintRowEl=document.getElementById('renderOptionsRow');
 const overprintToggleEl=document.getElementById('overprintToggle');
-const overprintInfoEl=document.getElementById('overprintInfo');
-const overprintWarnEl=document.getElementById('overprintWarn');
 
 let overprintSimEnabled=false;   // estado efectivo del interruptor
 let overprintUserTouched=false;  // true en cuanto el usuario pulsa el checkbox: deja de autoactivarse en la sesión
@@ -274,41 +272,9 @@ async function syncOverprintMode(opts){
   updateOverprintUI();
 }
 
-function opDescribe(which,s){
-  if(s.error)return`${which}: no se pudo analizar (${s.error})`;
-  const parts=[];
-  const none=s.knockout?'sin sobreimpresión fuera de grupos knockout':'sin sobreimpresión';
-  if(overprintSimEnabled){
-    parts.push(s.opStates?`${s.translated} estado${s.translated===1?'':'s'} traducido${s.translated===1?'':'s'} a Multiplicar`:none);
-    if(s.keptBlend)parts.push(`${s.keptBlend} ya con fusión propia`);
-    parts.push(s.groupInjected?'grupo de página inyectado':'grupo de página ya presente');
-  }else{
-    parts.push(s.opStates?`${s.opStates} estado${s.opStates===1?'':'s'} con sobreimpresión`:none);
-  }
-  return`${which}: ${parts.join(', ')}`;
-}
-
 function updateOverprintUI(){
   const sources=opSources().filter(([,s])=>s.overprint);
-  if(!sources.length){
-    overprintRowEl.style.display='none';
-    overprintInfoEl.textContent='';overprintWarnEl.textContent='';
-    return;
-  }
-  overprintRowEl.style.display='flex';
-  const anyOp=sources.some(([,s])=>s.overprint.stats.opStates>0);
-  const anyErr=sources.some(([,s])=>s.overprint.stats.error);
-  let head;
-  if(anyErr)head='Simulación no disponible';
-  else if(overprintSimEnabled)head='Sobreimpresión simulada';
-  else head=anyOp?'Sobreimpresión detectada — no simulada':'Sin sobreimpresión detectada';
-  overprintInfoEl.textContent=head+' · '+sources.map(([w,s])=>opDescribe(w,s.overprint.stats)).join(' · ');
-  const warns=[];
-  let opm0=0,ko=0;
-  sources.forEach(([,s])=>{opm0+=s.overprint.stats.opm0||0;ko+=s.overprint.stats.knockout||0;});
-  if(opm0)warns.push(`${opm0} estado${opm0===1?'':'s'} con OPM 0: el calado a blanco real de esa sobreimpresión no se reproduce`);
-  if(ko)warns.push(`${ko} grupo${ko===1?'':'s'} knockout sin aproximar`);
-  overprintWarnEl.textContent=warns.length?'Aviso: '+warns.join(' · '):'';
+  overprintRowEl.style.display=sources.length?'flex':'none';
 }
 
 function resetOverprintUI(){
@@ -317,7 +283,6 @@ function resetOverprintUI(){
   overprintToggleEl.checked=false;
   overprintToggleEl.disabled=false;
   overprintRowEl.style.display='none';
-  overprintInfoEl.textContent='';overprintWarnEl.textContent='';
 }
 
 overprintToggleEl.onchange=async()=>{
