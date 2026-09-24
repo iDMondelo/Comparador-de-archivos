@@ -12,6 +12,3 @@ vendor/
 
 # capturas y resultados de verificación local
 pruebas/
-
-# guía interna para Claude Code, no destinada a publicarse
-CLAUDE.md
