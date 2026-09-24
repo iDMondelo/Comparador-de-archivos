@@ -10,6 +10,9 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'23',date:'2026-09-24',changes:[
+    'Nueva ilustración animada en la cabecera: dos revisiones de un arte final con sus diferencias marcadas y una lupa con el detalle vectorial; las píldoras de características estrenan iconos y la última pasa a «Todo en tu navegador».'
+  ]},
   {version:'22',date:'2026-09-24',changes:[
     'Barra superior simplificada: el nombre de la herramienta a la izquierda y la marca a la derecha, fija arriba al hacer scroll; el historial de versiones y el contacto siguen en el pie.'
   ]},
@@ -23,10 +26,6 @@ const VERSION_HISTORY=[
   {version:'19',date:'2026-09-22',changes:[
     'Semáforo de fiabilidad junto al nombre de cada archivo PDF: verde/ámbar/rojo según perfil de salida declarado, cifrado, anotaciones con apariencia visible excluidas del render, sobreimpresión con OPM 0 y fuentes no embebidas en texto vivo — con el motivo en una línea al pasar el cursor o pulsar.',
     'Todo se lee del mismo parseo que ya hacía la detección de sobreimpresión al cargar cada archivo, sin analizarlo una segunda vez.'
-  ]},
-  {version:'18',date:'2026-09-18',changes:[
-    'Unifica el render de PDF de las tres fases (vista previa, selector de elemento vectorial y vista final) en una sola función, que excluye siempre las anotaciones del PDF: el icono de una nota de comentario ya no aparece superpuesto al contenido.',
-    'El tramado de «no comparable» ya no aparece en la vista previa ni en el selector de elemento: solo se dibuja en la vista final tras alinear, y ahora se ve en ambos archivos por igual cuando uno tiene más página que el otro (antes esa franja ni se renderizaba en modo escala bloqueada).'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
