@@ -6,6 +6,7 @@
 <title>Comparador ΔE</title>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&display=swap");
 :root{
   /* ---- DMondelo design tokens — ver DESIGN.md ---- */
   --canvas:#ffffff;
@@ -21,8 +22,10 @@
   --primary-press:#082943;
   --primary-bg-subdued-hover:#dce8f1;
   --accent-gold-deep:#8a6210;
+  --accent-gold:#dfa01f;
   --on-primary:#ffffff;
   --font-sans:Montserrat,system-ui,-apple-system,sans-serif;
+  --font-display:"Playfair Display",Georgia,serif;
 
   --weight-semibold:600;--weight-bold:700;
   --heading-lg-size:22px;
@@ -70,8 +73,9 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
-.wrap{padding:var(--space-5) var(--space-4);max-width:1040px;margin:0 auto}
-.app-header{display:flex;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-5)}
+.wrap{padding:var(--space-5) var(--space-4);max-width:1440px;margin:0 auto}
+.app-header{display:flex;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-5);padding-bottom:var(--space-4);position:relative}
+.app-header::after{content:"";position:absolute;left:0;bottom:0;width:96px;height:2px;background:var(--accent-gold)}
 .app-logo-link{display:inline-flex;align-items:center;flex-shrink:0;margin-right:var(--logo-gap-header);margin-top:2px}
 .app-logo-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
 .app-logo{color:var(--primary);display:block;width:auto}
@@ -80,7 +84,7 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .app-header-text{flex:1 1 auto;min-width:0}
 .app-title-row{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap}
 .app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink);flex-shrink:0}
-.app-title .accent{color:var(--accent-gold-deep);font-weight:var(--weight-bold)}
+.app-title .accent{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:1.7em;color:var(--accent-gold-deep);margin-left:3px}
 .status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:2px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
 .app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);background:none;border:none;padding:0;cursor:pointer}
 .app-version:hover{color:var(--primary);text-decoration:underline}
@@ -88,6 +92,14 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .app-sub{display:flex;flex-wrap:wrap;column-gap:var(--space-2);row-gap:2px;margin-top:2px;font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
 .app-sub-formats{white-space:nowrap}
 .field-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2)}
+.settings-details{margin:0 0 var(--space-3)}
+.settings-details summary{display:inline-flex;align-items:center;gap:6px;font-size:var(--caption-size);font-weight:var(--weight-semibold);color:var(--ink-dim);cursor:pointer;list-style:none}
+.settings-details summary::-webkit-details-marker{display:none}
+.settings-details summary:hover{color:var(--ink)}
+.settings-details summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.settings-details .chevron{flex-shrink:0;color:var(--ink-faint);transition:transform .15s}
+.settings-details[open] .chevron{transform:rotate(180deg)}
+.settings-details>:not(summary){margin-top:var(--space-2)}
 .drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-4);text-align:center;cursor:pointer;transition:background .15s,border-color .15s;position:relative;background:var(--surface)}
 .drop-zone:hover{background:var(--surface-raised)}
 .drop-zone.drag-over{background:var(--surface-raised);border-color:var(--accent)}
@@ -106,6 +118,7 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 .reliability-dot.red{background:var(--reliability-red)}
 .reliability-tap{font-size:var(--caption-size);color:var(--ink-dim);white-space:nowrap}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4)}
+.grid-upload{gap:var(--space-4)}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-5) 0}
 .stat{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--elevation-1);padding:var(--space-4) var(--space-3);text-align:center}
 .stat .val{font-family:var(--font-sans);font-variant-numeric:tabular-nums;font-size:var(--heading-lg-size);font-weight:var(--weight-semibold);color:var(--ink)}
@@ -130,6 +143,7 @@ canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .hint{font-size:var(--caption-size);color:var(--ink-faint);margin-top:var(--space-2)}
 #threshSuggestNote{display:none;color:var(--primary-deep);font-weight:600;margin-top:calc(var(--space-2) * -1)}
 .btn-row{display:flex;gap:var(--space-2);margin-top:var(--space-4);flex-wrap:wrap}
+.btn-row-sticky{position:sticky;bottom:0;background:var(--bg);padding:var(--space-3) 0;z-index:10}
 button.action{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--primary);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);letter-spacing:var(--button-sm-track);font-family:var(--font-ui);cursor:pointer;background:var(--surface);color:var(--primary);transition:background .15s,border-color .15s,color .15s}
 button.action:hover{background:var(--primary-bg-subdued-hover);border-color:var(--primary-deep);color:var(--primary-deep)}
 button.action:disabled{opacity:.4;cursor:default}
@@ -140,7 +154,7 @@ button.action.primary:disabled{background:var(--surface);border-color:var(--bord
 button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drop-zone:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 #status{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink-dim);margin:var(--space-2) 0;min-height:18px}
-.legend{display:flex;gap:var(--space-4);flex-wrap:wrap;margin:var(--space-2) 0}
+.legend{display:flex;gap:var(--space-4);flex-wrap:wrap;margin:var(--space-3) 0 var(--space-1)}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:var(--caption-size);color:var(--ink-dim)}
 .legend-dot{width:9px;height:9px;border-radius:50%}
 .dot-high{background:var(--sev-high)}
@@ -365,7 +379,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   </div>
 </div>
 
-<div class="grid2">
+<div class="grid2 grid-upload">
   <div>
     <div class="field-label">Imagen A — original</div>
     <div class="drop-zone" id="dropA">
@@ -418,15 +432,6 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   </div>
 </div>
 
-<div class="render-options-row" id="renderOptionsRow" style="display:none">
-  <span class="render-options-label">Resolución</span>
-  <span class="render-options-info" id="analysisResolutionInfo"></span>
-  <span class="render-options-label">Render</span>
-  <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
-  <span class="render-options-info" id="overprintInfo"></span>
-  <span class="render-options-warn" id="overprintWarn"></span>
-</div>
-
 <div id="alignSection" style="display:none">
   <div class="title">Alineación — opcional</div>
   <div class="align-method-badge" id="alignMethodBadge"></div>
@@ -438,16 +443,19 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </span>
     <label><input type="checkbox" id="scaleLockToggle"> Desbloquear escala (solo si sabes que un archivo fue reescalado)</label>
   </div>
-  <div class="align-method align-method-recommended">
-    <div class="align-method-label">Método recomendado</div>
-    <button class="action" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear por elemento vectorial…</button>
-    <p class="align-method-desc">Precisión exacta: se ancla a la geometría real del archivo. Disponible en PDF y .AI.</p>
-  </div>
-  <div class="align-method align-method-alt">
-    <div class="align-method-label">Método alternativo</div>
-    <p class="align-method-desc">Puntos de referencia manuales, para cualquier formato. La precisión depende de dónde se marquen — ajusta con las flechas del teclado.</p>
-  </div>
-  <div class="align-format-notice" id="alignFormatNotice"></div>
+  <button class="action" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear por elemento vectorial…</button>
+  <details class="settings-details" open>
+    <summary>¿Cómo elegir el método de alineación?<span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+    <div class="align-method align-method-recommended">
+      <div class="align-method-label">Método recomendado</div>
+      <p class="align-method-desc">Precisión exacta: se ancla a la geometría real del archivo. Disponible en PDF y .AI.</p>
+    </div>
+    <div class="align-method align-method-alt">
+      <div class="align-method-label">Método alternativo</div>
+      <p class="align-method-desc">Puntos de referencia manuales, para cualquier formato. La precisión depende de dónde se marquen — ajusta con las flechas del teclado.</p>
+    </div>
+    <div class="align-format-notice" id="alignFormatNotice"></div>
+  </details>
   <div class="align-guide" id="alignGuideText">Si vas a alinear: punto 1 en la imagen A</div>
   <div class="grid2">
     <div>
@@ -473,6 +481,18 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="align-controls-hint">Rueda: zoom<span class="sep">//</span>Arrastrar: desplazar<span class="sep">//</span>Doble clic: restablecer</div>
 </div>
 
+<div class="field-label">Ajustes de comparación</div>
+<details class="settings-details" open>
+  <summary>Opciones de render<span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+  <div class="render-options-row" id="renderOptionsRow" style="display:none">
+    <span class="render-options-label">Resolución</span>
+    <span class="render-options-info" id="analysisResolutionInfo"></span>
+    <span class="render-options-label">Render</span>
+    <label><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
+    <span class="render-options-info" id="overprintInfo"></span>
+    <span class="render-options-warn" id="overprintWarn"></span>
+  </div>
+</details>
 <div class="thresh-row">
   <label>Umbral ΔE:</label>
   <input type="range" id="thresh" min="1" max="30" value="1" step="1">
@@ -485,7 +505,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <button class="action" id="btnForceCompare">Forzar de todos modos</button>
 </div>
 
-<div class="btn-row">
+<div class="btn-row btn-row-sticky">
   <button class="action primary" id="btnCompare" disabled>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg> Comparar
   </button>

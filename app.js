@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'20',date:'2026-09-24',changes:[
+    'Rediseño visual: contenedor más ancho para aprovechar pantallas de escritorio grandes, cabecera con mayor jerarquía tipográfica y los ajustes de render y umbral ΔE agrupados junto a la sección de alineación en vez de separados por ella.',
+    'Las explicaciones de cada método de alineación pasan a un desplegable para dejar el área de trabajo (marcado de puntos, badges, canvases) más despejada; el botón «Comparar» queda fijo al pie de pantalla mientras se hace scroll.'
+  ]},
   {version:'19',date:'2026-09-22',changes:[
     'Semáforo de fiabilidad junto al nombre de cada archivo PDF: verde/ámbar/rojo según perfil de salida declarado, cifrado, anotaciones con apariencia visible excluidas del render, sobreimpresión con OPM 0 y fuentes no embebidas en texto vivo — con el motivo en una línea al pasar el cursor o pulsar.',
     'Todo se lee del mismo parseo que ya hacía la detección de sobreimpresión al cargar cada archivo, sin analizarlo una segunda vez.'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'16',date:'2026-09-15',changes:[
     'Simulación aproximada de sobreimpresión en el render de PDF/.ai: el archivo se reescribe en memoria (pdf-lib, nunca en disco) traduciendo los estados con /OP o /op a modo Multiplicar e inyectando un grupo de transparencia de página, y se aplica siempre por igual a A y a B.',
     'Nuevo interruptor «Simular sobreimpresión», activado por defecto al detectar sobreimpresión, con recuento de estados traducidos y avisos para OPM 0 y grupos knockout. Cambiarlo re-renderiza ambos archivos y obliga a repetir la comparación.'
-  ]},
-  {version:'15',date:'2026-09-14',changes:[
-    'Entre dos archivos vectoriales (PDF/.ai) la escala queda bloqueada a 1:1 y el giro a 0: solo se calcula el desplazamiento, en puntos PDF, y B se renderiza ya desplazada por PDF.js sin remuestrear el bitmap, con un interruptor para desbloquear la escala si un archivo fue reescalado.',
-    'El lienzo comparado pasa a ser la intersección física de ambas páginas (se muestra en mm y se trama lo que queda fuera en las miniaturas), el PPP queda enlazado entre ambos archivos y la alineación por caja de página avisa cuando los formatos son distintos.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
