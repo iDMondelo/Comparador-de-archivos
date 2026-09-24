@@ -10,6 +10,9 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'21',date:'2026-09-24',changes:[
+    'Nueva cabecera: barra superior fija con la marca, la versión y acceso directo a la ayuda y al contacto, y una presentación renovada de la herramienta con sus características clave.'
+  ]},
   {version:'20',date:'2026-09-24',changes:[
     'Rediseño visual: contenedor más ancho para aprovechar pantallas de escritorio grandes, cabecera con mayor jerarquía tipográfica y los ajustes de render y umbral ΔE agrupados junto a la sección de alineación en vez de separados por ella.',
     'Las explicaciones de cada método de alineación pasan a un desplegable para dejar el área de trabajo (marcado de puntos, badges, canvases) más despejada; el botón «Comparar» queda fijo al pie de pantalla mientras se hace scroll.'
@@ -25,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'17',date:'2026-09-17',changes:[
     'La resolución de análisis queda fija en 600 ppp (se retira el selector de PPP): antes de comparar, la herramienta estima la memoria y comprueba el límite de canvas de tu navegador, y avisa o bloquea el análisis si el archivo es demasiado grande para procesarse con seguridad.',
     'Nueva barra de progreso por etapas durante el análisis (render, cálculo ΔE, detección de zonas, visualización), con tiempo transcurrido, estimación de tiempo restante y botón para cancelar.'
-  ]},
-  {version:'16',date:'2026-09-15',changes:[
-    'Simulación aproximada de sobreimpresión en el render de PDF/.ai: el archivo se reescribe en memoria (pdf-lib, nunca en disco) traduciendo los estados con /OP o /op a modo Multiplicar e inyectando un grupo de transparencia de página, y se aplica siempre por igual a A y a B.',
-    'Nuevo interruptor «Simular sobreimpresión», activado por defecto al detectar sobreimpresión, con recuento de estados traducidos y avisos para OPM 0 y grupos knockout. Cambiarlo re-renderiza ambos archivos y obliga a repetir la comparación.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -833,6 +832,9 @@ function initMetaUI(){
   const mailto=`mailto:contacto@diegomondelo.com?subject=${subject}`;
   document.getElementById('resultsFeedbackLink').href=mailto;
   document.getElementById('footerFeedbackLink').href=mailto;
+  document.getElementById('headerFeedbackLink').href=mailto;
+  // enlaces de la barra superior a un desplegable de ayuda concreto: lo abren al llegar
+  document.querySelectorAll('[data-open-help]').forEach(a=>a.addEventListener('click',()=>{const d=document.querySelector(a.getAttribute('href'));if(d)d.open=true;}));
 }
 initMetaUI();
 
