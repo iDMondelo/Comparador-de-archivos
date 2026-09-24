@@ -39,7 +39,7 @@
   --radius-xs:4px;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-pill:9999px;
   --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;
 
-  --logo-h-header:26px;--logo-gap-header:10px;
+  --logo-h-header:22px;
   --logo-h-footer:13px;--logo-gap-footer:6px;
 
   --elevation-1:rgba(15,34,51,0.06) 0 1px 2px;
@@ -74,23 +74,44 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--body-md-lh);background:var(--bg);color:var(--ink)}
 .wrap{padding:var(--space-5) var(--space-4);max-width:1440px;margin:0 auto}
-.app-header{display:flex;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-5);padding-bottom:var(--space-4);position:relative}
-.app-header::after{content:"";position:absolute;left:0;bottom:0;width:96px;height:2px;background:var(--accent-gold)}
-.app-logo-link{display:inline-flex;align-items:center;flex-shrink:0;margin-right:var(--logo-gap-header);margin-top:2px}
-.app-logo-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+/* ---- barra superior fija ---- */
+.topbar{position:sticky;top:0;z-index:50;background:var(--canvas-soft);border-bottom:0.5px solid var(--hairline)}
+.topbar-inner{max-width:1440px;margin:0 auto;padding:var(--space-3) var(--space-4);display:flex;align-items:center;gap:var(--space-4)}
+.topbar-brand{display:flex;align-items:center;gap:var(--space-3);min-width:0;flex:1 1 auto}
+.app-logo-link{display:inline-flex;align-items:center;flex-shrink:0}
+.app-logo-link:focus-visible,.topbar a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--radius-xs)}
 .app-logo{color:var(--primary);display:block;width:auto}
 .app-logo--header{height:var(--logo-h-header)}
 .app-logo--footer{height:var(--logo-h-footer)}
-.app-header-text{flex:1 1 auto;min-width:0}
-.app-title-row{display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap}
-.app-title{font-size:var(--heading-md-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink);flex-shrink:0}
-.app-title .accent{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:1.7em;color:var(--accent-gold-deep);margin-left:3px}
-.status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:2px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
-.app-version{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);background:none;border:none;padding:0;cursor:pointer}
-.app-version:hover{color:var(--primary);text-decoration:underline}
+.topbar-sep{width:0.5px;align-self:stretch;margin:4px 0;background:var(--hairline-input)}
+.app-title{font-size:17px;font-weight:var(--weight-semibold);letter-spacing:-0.01em;color:var(--ink);white-space:nowrap;line-height:1}
+.app-title .accent{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:1.5em;color:var(--accent-gold-deep);margin-left:2px}
+.status-badge{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-mute);background:var(--canvas-tint);border-radius:var(--radius-pill);padding:3px 10px;text-transform:uppercase;letter-spacing:var(--micro-cap-track);line-height:1.4}
+.app-version{font-family:var(--font-mono);font-size:11px;font-feature-settings:"tnum";color:var(--ink-mute);background:var(--canvas);border:0.5px solid var(--hairline);border-radius:var(--radius-pill);padding:3px 9px;line-height:1.4;cursor:pointer;transition:color .15s,border-color .15s}
+.app-version:hover{color:var(--primary);border-color:var(--primary)}
 .app-version:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.app-sub{display:flex;flex-wrap:wrap;column-gap:var(--space-2);row-gap:2px;margin-top:2px;font-family:var(--font-sans);font-size:var(--caption-size);color:var(--ink-faint);letter-spacing:.02em}
-.app-sub-formats{white-space:nowrap}
+.topbar-nav{margin-left:auto;display:flex;align-items:center;gap:var(--space-5)}
+.topbar-link{font-size:var(--button-sm-size);font-weight:500;color:var(--ink-secondary);text-decoration:none;white-space:nowrap}
+.topbar-link:hover{color:var(--primary)}
+.topbar-actions{display:flex;align-items:center;gap:var(--space-2)}
+.pill-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid var(--primary);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);letter-spacing:var(--button-sm-track);text-decoration:none;white-space:nowrap;background:var(--surface);color:var(--primary);transition:background .15s,border-color .15s,color .15s}
+.pill-btn:hover{background:var(--primary-bg-subdued-hover);border-color:var(--primary-deep);color:var(--primary-deep)}
+.pill-btn.primary{background:var(--primary);color:var(--on-primary)}
+.pill-btn.primary:hover{background:var(--primary-deep);border-color:var(--primary-deep);color:var(--on-primary)}
+.pill-btn.primary:active{background:var(--primary-press);border-color:var(--primary-press)}
+
+/* ---- hero compacto ---- */
+.hero{text-align:center;padding:var(--space-6) 0 40px}
+.hero-rule{width:32px;height:3px;background:var(--accent-gold);margin:0 auto var(--space-4);border-radius:2px}
+.hero-title{font-size:clamp(28px,4.2vw,44px);font-weight:var(--weight-semibold);letter-spacing:-0.02em;line-height:1.15;color:var(--ink)}
+.hero-title em{font-family:var(--font-display);font-style:italic;font-weight:700;color:var(--accent-gold-deep);letter-spacing:0}
+.hero-sub{max-width:60ch;margin:var(--space-3) auto 0;color:var(--ink-secondary)}
+.hero-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2);margin-top:var(--space-5);list-style:none}
+.hero-chips li{display:inline-flex;align-items:center;gap:6px;font-size:var(--caption-size);font-weight:500;color:var(--ink-secondary);background:var(--canvas);border:0.5px solid var(--hairline);border-radius:var(--radius-pill);padding:5px 14px;box-shadow:var(--elevation-1);font-feature-settings:"tnum"}
+.hero-chips svg{color:var(--primary);flex-shrink:0}
+@media (max-width:900px){.topbar-nav .topbar-link,.app-version{display:none}}
+@media (max-width:640px){.topbar-sep,.status-badge,.topbar-btn-help{display:none}.topbar-inner{gap:var(--space-3)}.app-logo--header{height:20px}.hero{padding:var(--space-5) 0 var(--space-6)}}
+@media (max-width:480px){.pill-btn-label{display:none}.pill-btn.primary{padding:9px 12px}}
 .field-label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-2)}
 .settings-details{margin:0 0 var(--space-3)}
 .settings-details summary{display:inline-flex;align-items:center;gap:6px;font-size:var(--caption-size);font-weight:var(--weight-semibold);color:var(--ink-dim);cursor:pointer;list-style:none}
@@ -238,7 +259,8 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .region-coords{font-family:var(--font-mono)}
 
 /* ---- ayuda plegable ---- */
-.help-section{margin:var(--space-6) 0 var(--space-4)}
+.help-section{margin:var(--space-6) 0 var(--space-4);scroll-margin-top:88px}
+.help-item{scroll-margin-top:88px}
 .help-list{display:flex;flex-direction:column;gap:var(--space-2)}
 .help-item{border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--surface);overflow:hidden}
 .help-item summary{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);cursor:pointer;font-size:var(--body-md-size);font-weight:var(--weight-semibold);color:var(--ink);list-style:none}
@@ -360,24 +382,41 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   </symbol>
 </svg>
 
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-brand">
+      <a class="app-logo-link" href="https://diegomondelo.com" target="_blank" rel="noopener" aria-label="Diego Mondelo">
+        <svg class="app-logo app-logo--header" viewBox="0 0 585.11 95.44" aria-hidden="true" focusable="false"><use href="#logo-dmondelo"></use></svg>
+      </a>
+      <span class="topbar-sep" aria-hidden="true"></span>
+      <span class="app-title">Comparador<span class="accent">ΔE</span></span>
+      <span class="status-badge">Beta</span>
+      <button type="button" class="app-version" id="appVersionTag" aria-haspopup="dialog" title="Historial de versiones"></button>
+    </div>
+    <nav class="topbar-nav" aria-label="Principal">
+      <a class="topbar-link" href="#help-uso" data-open-help>Cómo se usa</a>
+      <a class="topbar-link" href="#help-limites" data-open-help>Limitaciones</a>
+      <div class="topbar-actions">
+        <a class="pill-btn topbar-btn-help" href="#ayuda"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3"/><path d="M12 17h.01"/></svg>Ayuda</a>
+        <a class="pill-btn primary" href="#" id="headerFeedbackLink" aria-label="Escríbeme"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="pill-btn-label">Escríbeme</span></a>
+      </div>
+    </nav>
+  </div>
+</header>
+
 <div class="wrap">
 
-<div class="app-header">
-  <a class="app-logo-link" href="https://diegomondelo.com" target="_blank" rel="noopener" aria-label="Diego Mondelo">
-    <svg class="app-logo app-logo--header" viewBox="0 0 585.11 95.44" aria-hidden="true" focusable="false"><use href="#logo-dmondelo"></use></svg>
-  </a>
-  <div class="app-header-text">
-    <div class="app-title-row">
-      <h2 class="app-title">Comparador<span class="accent">ΔE</span></h2>
-      <span class="status-badge">Beta</span>
-      <button type="button" class="app-version" id="appVersionTag" aria-haspopup="dialog"></button>
-    </div>
-    <div class="app-sub">
-      <span>Comparación píxel a píxel</span>
-      <span class="app-sub-formats">// PDF · AI · JPG · PNG</span>
-    </div>
-  </div>
-</div>
+<section class="hero">
+  <div class="hero-rule" aria-hidden="true"></div>
+  <h1 class="hero-title">Cada cambio, <em>a la vista.</em></h1>
+  <p class="hero-sub">Compara dos revisiones de un arte final y localiza cada diferencia de color y de texto. Todo ocurre en tu navegador.</p>
+  <ul class="hero-chips">
+    <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>PDF · AI · JPG · PNG</li>
+    <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>ΔE 2000</li>
+    <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Análisis a 600 ppp</li>
+    <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Sin subir archivos</li>
+  </ul>
+</section>
 
 <div class="grid2 grid-upload">
   <div>
@@ -608,7 +647,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="zoom-info" id="alignZoomInfo"></div>
 </div>
 
-<section class="help-section" aria-label="Ayuda">
+<section class="help-section" id="ayuda" aria-label="Ayuda">
   <div class="field-label">Ayuda</div>
   <div class="help-list">
     <details class="help-item">
@@ -617,7 +656,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <p>Compara dos versiones de un mismo archivo — por ejemplo, el diseño aprobado y una revisión del cliente — y señala automáticamente todo lo que ha cambiado entre ambas, píxel a píxel. Está pensada para revisar cambios entre revisiones de cliente sin tener que repasarlas a ojo.</p>
       </div>
     </details>
-    <details class="help-item">
+    <details class="help-item" id="help-uso">
       <summary>Cómo se usa<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
         <p>Pensada para ordenador: necesitas pantalla grande y ratón o trackpad para marcar alineación y revisar zonas con precisión.</p>
@@ -662,7 +701,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <p>El análisis se realiza siempre a 600 ppp, resolución suficiente para detectar desplazamientos mínimos y cambios en texto pequeño. Antes de comparar, la herramienta estima si tu navegador tiene memoria suficiente y avisa si el archivo es demasiado grande. En archivos PDF, además, detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
       </div>
     </details>
-    <details class="help-item">
+    <details class="help-item" id="help-limites">
       <summary>Limitaciones<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
         <ul>
