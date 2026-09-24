@@ -42,6 +42,7 @@ When changing one file, check whether its header comment names files it explicit
 - `ANALYSIS_DPI` (in `app.js`) is the single fixed analysis resolution; there is deliberately no user-facing DPI selector anymore (removed in v17 in favor of the viability pre-flight check).
 - Brand/design tokens live in `design-system/` and are summarized in `DESIGN.md`, including a list of deliberate exceptions (e.g. the black viewer background, the ΔE severity colors, the reliability traffic-light colors) that must **not** be changed to match brand tokens — they're algorithm output or accessibility-driven, not decoration. Read `DESIGN.md`'s "Excepciones deliberadas" section before touching any color in `index.html`'s CSS.
 - Repo comments and commit history are in Spanish; match that when editing existing files.
+- Commits in this repo do not carry `Co-Authored-By: Claude...` or `Claude-Session:` trailers — the repo owner asked for these to be omitted so GitHub doesn't list Claude as a co-author/contributor.
 
 ## Verification
 
