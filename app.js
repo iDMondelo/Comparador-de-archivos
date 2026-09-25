@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'30',date:'2026-09-25',changes:[
+    'La línea de progreso de la comparación pasa a estar encima del botón Comparar, con Cancelar discreto a su lado, y su hueco queda reservado para que Comparar no se mueva al pulsarlo.',
+    'Al terminar, tras mostrar «Análisis completo», la página baja sola hasta los resultados.'
+  ]},
   {version:'29',date:'2026-09-25',changes:[
     '«Restablecer alineación» pasa a la derecha de «Alinear archivos», en estilo discreto, y «Simular sobreimpresión» se mueve a la misma línea que la escala bloqueada a 1:1.',
     'Ambas opciones llevan ahora una casilla visible que indica si están activas (sustituye al candado) y se quita el texto «PPP común».'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'26',date:'2026-09-24',changes:[
     'Limpieza de «Opciones de render»: se quita el desplegable y el texto de diagnóstico de sobreimpresión — antes de comparar solo se ve el umbral ΔE, «Análisis a 600 ppp» y la casilla «Simular sobreimpresión».',
     'El autoactivado de la simulación de sobreimpresión no cambia: sigue marcándose solo cuando el archivo realmente la tiene.'
-  ]},
-  {version:'25',date:'2026-09-24',changes:[
-    'La alineación pasa a hacerse solo por elemento vectorial: se quita el marcado manual de puntos a clic (arrastrar un punto ya puesto y ajustarlo con el teclado se sigue pudiendo hacer igual que antes) y el botón se renombra a «Alinear archivos».',
-    'Para archivos que no son PDF/.ai en ambos lados, la sección de alineación muestra ahora un aviso de que no está disponible para ese tipo de archivo, en vez de la explicación de los dos métodos.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -144,12 +144,7 @@ async function handleFileSelected(file,which){
     // Baja la vista solo tras el reabierto por sobreimpresión (puede volver a
     // dibujar los lienzos y cambiar su altura); si se hiciera antes, un
     // redibujado tardío la dejaría descuadrada.
-    if(typeof consumeAlignJustRevealed==='function'&&consumeAlignJustRevealed()){
-      const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        alignSection.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
-      }));
-    }
+    if(typeof consumeAlignJustRevealed==='function'&&consumeAlignJustRevealed())scrollToSection(alignSection);
   }catch(err){
     status.textContent='Error al cargar archivo '+which+': '+err.message;
   }
@@ -267,6 +262,17 @@ btnForceCompare.onclick=()=>{
     compare
   );
 };
+
+// Baja la vista hasta `el` (su scroll-margin-top deja sitio a la barra
+// superior fija). Cede dos fotogramas para que el navegador haya pintado el
+// contenido recién mostrado antes de medir; sin animación si el usuario
+// pide movimiento reducido.
+function scrollToSection(el){
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
+  }));
+}
 
 function hideResults(){
   statsRow.style.display='none';
@@ -466,7 +472,7 @@ async function onWorkerMessage(e){
 
     renderTab(currentTab==='texto'?'overlay':currentTab);
     setCompareStage('Análisis completo');
-    finishCompareProgress();
+    finishCompareProgress(msg.runId);
     checkReady();
     threshSlider.disabled=false;
   }
@@ -501,11 +507,13 @@ if(heroArtEl&&'IntersectionObserver' in window){
 
 // ---- etapa de comparación: una sola línea, escrita a máquina (compare()) ---
 // Sin barra ni porcentaje (rediseño v28): solo un <span> cuyo texto se
-// reemplaza letra a letra. `_stageTypeToken` invalida una escritura en curso
-// si llega una etiqueta nueva antes de terminar; si el texto pedido ya es el
-// que se está mostrando (o escribiendo), no hace nada — evita reiniciar la
-// animación en cada mensaje `progress` del worker, que llega con la misma
-// etiqueta muchas veces seguidas.
+// reemplaza letra a letra (junto a un gemelo invisible con la etapa más larga
+// que le reserva el ancho, ver .compare-stage-ghost). `_stageTypeToken`
+// invalida una escritura en curso si llega una etiqueta nueva antes de
+// terminar; si el texto pedido ya es el que se está mostrando (o
+// escribiendo), no hace nada — evita reiniciar la animación en cada mensaje
+// `progress` del worker, que llega con la misma etiqueta muchas veces
+// seguidas.
 let _stageTypeToken=0,_stageShownText='';
 function typewriteStage(text){
   if(text===_stageShownText)return;
@@ -541,19 +549,30 @@ function announceStage(label){
 function showCompareProgress(){
   setHeroArtPaused('compare',true);
   cancelRequested=false;
-  compareProgressEl.style.display='block';
+  compareProgressEl.style.visibility='visible';
+  btnCancelCompare.style.visibility=''; // hereda del bloque (ver finishCompareProgress)
   _stageShownText='';
   setCompareStage('Análisis a 600 ppp');
 }
 
-function finishCompareProgress(){
+// Deja ver «Análisis completo» un momento (ya sin Cancelar: no queda nada que
+// cancelar) y después oculta la línea y baja a los resultados (avisos si los
+// hay, si no las cifras; el visor queda justo debajo). Si entretanto se
+// canceló, reinició o relanzó (currentRunId cambia) no hace nada: no oculta
+// el progreso de otra comparación ni desplaza.
+function finishCompareProgress(runId){
   setHeroArtPaused('compare',false);
-  setTimeout(()=>{compareProgressEl.style.display='none';},1300);
+  btnCancelCompare.style.visibility='hidden';
+  setTimeout(()=>{
+    if(runId!==currentRunId)return;
+    compareProgressEl.style.visibility='hidden';
+    if(resultsArea.style.display!=='none')scrollToSection(noteBox.style.display!=='none'?noteBox:statsRow);
+  },1300);
 }
 
 function hideCompareProgress(){
   setHeroArtPaused('compare',false);
-  compareProgressEl.style.display='none';
+  compareProgressEl.style.visibility='hidden';
 }
 
 function CompareCancelledError(){}

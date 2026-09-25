@@ -162,7 +162,7 @@ canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .hint{font-size:var(--caption-size);color:var(--ink-faint);margin-top:var(--space-2)}
 #threshSuggestNote{display:none;color:var(--primary-deep);font-weight:600;margin-top:calc(var(--space-2) * -1)}
 .btn-row{display:flex;gap:var(--space-2);margin-top:var(--space-4);flex-wrap:wrap}
-.btn-row-cta{padding:var(--space-5) 0 var(--space-3);flex-direction:column;align-items:center}
+.btn-row-cta{margin-top:0;padding:0 0 var(--space-3);flex-direction:column;align-items:center}
 button.action{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--primary);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);letter-spacing:var(--button-sm-track);font-family:var(--font-ui);cursor:pointer;background:var(--surface);color:var(--primary);transition:background .15s,border-color .15s,color .15s}
 button.action:hover{background:var(--primary-bg-subdued-hover);border-color:var(--primary-deep);color:var(--primary-deep)}
 button.action:disabled{opacity:.4;cursor:default}
@@ -181,8 +181,8 @@ button.action.primary:disabled{background:var(--surface);border-color:var(--bord
 #btnCompare:hover{background:var(--accent-gold-deep);border-color:var(--accent-gold-deep);color:var(--on-primary)}
 #btnCompare:active{background:var(--accent-gold-deep);border-color:var(--accent-gold-deep);color:var(--on-primary)}
 #btnCompare:disabled{background:var(--surface);border-color:var(--border);color:var(--ink-faint);box-shadow:none}
-#btnReset,#btnResetRef{padding:var(--space-1) var(--space-3);font-size:var(--caption-size);border-color:transparent;color:var(--ink-faint);background:transparent}
-#btnReset:hover,#btnResetRef:hover{background:var(--canvas-tint);border-color:transparent;color:var(--ink-dim)}
+#btnReset,#btnResetRef,#btnCancelCompare{padding:var(--space-1) var(--space-3);font-size:var(--caption-size);border-color:transparent;color:var(--ink-faint);background:transparent}
+#btnReset:hover,#btnResetRef:hover,#btnCancelCompare:hover{background:var(--canvas-tint);border-color:transparent;color:var(--ink-dim)}
 button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drop-zone:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 #status{font-family:var(--font-mono);font-size:var(--caption-size);color:var(--ink-dim);margin:var(--space-2) 0;min-height:18px}
@@ -197,6 +197,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
    position:sticky) al hacer scrollIntoView; si no, tapa el borde superior
    de las previsualizaciones. */
 #alignSection{margin-bottom:var(--space-4);scroll-margin-top:64px}
+#noteBox,#statsRow{scroll-margin-top:64px}
 #alignSection .title{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);text-transform:uppercase;letter-spacing:var(--micro-cap-track);margin-bottom:var(--space-1);line-height:1.5}
 .align-format-notice{font-size:var(--caption-size);line-height:1.4;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin:var(--space-2) 0}
 .align-format-notice.positive{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
@@ -256,10 +257,25 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .ocr-progress .bar{height:100%;width:0;background:var(--primary);transition:width .15s}
 .ocr-progress .pct{font-family:var(--font-mono);min-width:190px;text-align:right}
 
-.compare-progress{margin:var(--space-3) 0;font-size:var(--caption-size);color:var(--ink-dim)}
-.compare-progress-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)}
-#compareProgressStage{font-family:var(--font-mono);color:var(--primary-deep);font-weight:600}
-#compareProgressStage:not(:empty)::after{content:'';display:inline-block;width:7px;height:1em;margin-left:2px;background:currentColor;vertical-align:-2px;animation:stage-caret .85s steps(1) infinite}
+/* Encima de «Comparar», dentro de la columna centrada .btn-row-cta (el hueco
+   lo pone su gap): línea escrita a máquina centrada con Cancelar a su lado.
+   Se oculta con visibility, no con display, para que su hueco esté siempre
+   reservado: si apareciera empujando Comparar hacia abajo, Cancelar caería
+   justo bajo el cursor y un doble clic cancelaría la comparación. Por eso
+   .btn-row-cta no lleva margen ni padding superior: ese hueco ya lo pone. */
+.compare-progress{margin:0;font-size:var(--caption-size);color:var(--ink-dim)}
+.compare-progress-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--space-3)}
+/* La etapa más larga de compare() (app.js), invisible y en la misma celda
+   que el texto que se va escribiendo, reserva siempre el mismo ancho (caret
+   incluido): el texto se escribe de izquierda a derecha en su sitio y ni él
+   ni Cancelar se mueven al teclear ni al cambiar de etapa. Si alguna vez hay
+   una etapa más larga, la celda simplemente crece hasta ella. */
+.compare-stage-box{display:inline-grid;text-align:left}
+.compare-stage-box>span{grid-area:1/1}
+.compare-stage-ghost{visibility:hidden}
+#compareProgressStage,.compare-stage-ghost{font-family:var(--font-mono);color:var(--primary-deep);font-weight:600}
+#compareProgressStage:not(:empty)::after,.compare-stage-ghost:not(:empty)::after{content:'';display:inline-block;width:7px;height:1em;margin-left:2px;background:currentColor;vertical-align:-2px}
+#compareProgressStage:not(:empty)::after{animation:stage-caret .85s steps(1) infinite}
 @keyframes stage-caret{50%{opacity:0}}
 @media (prefers-reduced-motion:reduce){#compareProgressStage::after{animation:none}}
 .compare-progress .pct{font-family:var(--font-mono)}
@@ -649,17 +665,16 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 
 <div class="btn-row btn-row-cta">
+  <div class="compare-progress" id="compareProgress" style="visibility:hidden">
+    <div class="compare-progress-row">
+      <span class="compare-stage-box"><span class="compare-stage-ghost" aria-hidden="true">Comparando píxel a píxel — ΔE2000</span><span id="compareProgressStage"></span></span>
+      <button type="button" class="action" id="btnCancelCompare">Cancelar</button>
+    </div>
+  </div>
   <button class="action primary" id="btnCompare" disabled>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg> Comparar
   </button>
   <button class="action" id="btnReset"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 16v-4h4"/></svg> Reiniciar</button>
-</div>
-
-<div class="compare-progress" id="compareProgress" style="display:none">
-  <div class="compare-progress-row">
-    <span id="compareProgressStage"></span>
-    <button type="button" class="action" id="btnCancelCompare">Cancelar</button>
-  </div>
 </div>
 
 <div id="status"></div>
