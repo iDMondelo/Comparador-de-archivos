@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'28',date:'2026-09-25',changes:[
+    'Comparar se vuelve la acción principal (botón dorado y grande) con Reiniciar más pequeño debajo; el progreso de la comparación pasa de barra/%/tiempo a una sola línea escrita a máquina que termina en «Análisis completo».',
+    'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable, manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
+  ]},
   {version:'27',date:'2026-09-24',changes:[
     'Más limpieza antes de comparar: se quita el resumen de escala/giro/desplazamiento y la etiqueta «Ajustes de comparación», y el umbral ΔE pasa a una barra centrada de la mitad de ancho.',
     'El panel de viabilidad se reduce a resolución, memoria estimada y el aviso final; cuando el archivo no es viable, el aviso recomienda probar otro navegador o recortar el PDF en vez de decir que no se puede.'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'24',date:'2026-09-24',changes:[
     'Vista de alineación simplificada: al cargar ambos archivos ahora solo se ve, centrado, el botón de alineación (o un aviso de una línea si no está disponible para ese tipo de archivo), sin el resto de explicaciones.',
     'Las cajas de previsualización de cada archivo son más altas y cada una lleva ahora su propia leyenda de zoom («Rueda: zoom · Arrastrar: desplazar · Doble clic: restablecer»).'
-  ]},
-  {version:'23',date:'2026-09-24',changes:[
-    'Nueva ilustración animada en la cabecera: dos revisiones de un arte final con sus diferencias marcadas y una lupa con el detalle vectorial; las píldoras de características estrenan iconos y la última pasa a «Todo en tu navegador».',
-    'La animación se detiene cuando la cabecera queda fuera de pantalla y mientras se compara o se analiza el texto, y respeta la preferencia de movimiento reducido del sistema.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -59,13 +59,10 @@ const viabilityConfirmCancel=document.getElementById('viabilityConfirmCancel');
 const viabilityConfirmClose=document.getElementById('viabilityConfirmClose');
 const compareProgressEl=document.getElementById('compareProgress');
 const compareProgressStageEl=document.getElementById('compareProgressStage');
-const compareProgressBarEl=document.getElementById('compareProgressBar');
-const compareProgressPctEl=document.getElementById('compareProgressPct');
-const compareProgressTimeEl=document.getElementById('compareProgressTime');
 const btnCancelCompare=document.getElementById('btnCancelCompare');
 
 let lastViability=null;
-let compareStartTime=0,compareTimerId=null,cancelRequested=false;
+let cancelRequested=false;
 
 let sourceA=null,sourceB=null,currentTab='overlay';
 let overlayData=null,heatmapData=null,pixelDEmap=null;
@@ -144,6 +141,15 @@ async function handleFileSelected(file,which){
     // Sobreimpresión (overprint.js): si este archivo activa la simulación,
     // el otro se reabre reescrito para que ambos reciban el mismo trato.
     if(typeof syncOverprintMode==='function')await syncOverprintMode();
+    // Baja la vista solo tras el reabierto por sobreimpresión (puede volver a
+    // dibujar los lienzos y cambiar su altura); si se hiciera antes, un
+    // redibujado tardío la dejaría descuadrada.
+    if(typeof consumeAlignJustRevealed==='function'&&consumeAlignJustRevealed()){
+      const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        alignSection.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
+      }));
+    }
   }catch(err){
     status.textContent='Error al cargar archivo '+which+': '+err.message;
   }
@@ -393,10 +399,6 @@ function updateLockedNotes(res){
   const t=res.transform;
   const notes=[];
   const sizeA=pageSizePt(sourceA),sizeB=pageSizePt(sourceB);
-  notes.push(`Escala bloqueada a 1:1 (ambos archivos declaran dimensiones físicas) · Giro 0° · `+
-    (t.aligned?`Desplazamiento aplicado en el render: ${formatEs(t.dxPt,2)} × ${formatEs(t.dyPt,2)} pt · `:'Sin puntos: páginas superpuestas por el origen · ')+
-    'Sin remuestreo.');
-  notes.push(`Área comparada: ${formatSizeMm({w:res.area.wPt,h:res.area.hPt})} (intersección de ambas páginas${samePageSize(sizeA,sizeB)?'':`: A ${formatSizeMm(sizeA)} · B ${formatSizeMm(sizeB)}`}).`);
   if(!samePageSize(sizeA,sizeB)&&!t.aligned){
     notes.push('Aviso: los formatos de página son distintos y no se ha alineado por elemento — solo coincide lo que está en la misma posición respecto al origen de cada página.');
   }
@@ -404,8 +406,12 @@ function updateLockedNotes(res){
   if(res.area.w*res.area.h>0&&res.area.w*res.area.h<1600){
     notes.push('Aviso: el área de solapamiento es muy pequeña, las estadísticas pueden no ser representativas.');
   }
-  noteBox.innerHTML=notes.join('<br>');
-  noteBox.style.display='block';
+  if(notes.length){
+    noteBox.innerHTML=notes.join('<br>');
+    noteBox.style.display='block';
+  }else{
+    noteBox.style.display='none';
+  }
 }
 
 // ---- worker de cálculo ΔE2000 (de-worker.js) --------------------------------
@@ -434,13 +440,9 @@ async function onWorkerMessage(e){
   }
   if(msg.runId!==currentRunId)return;
   if(msg.type==='progress'){
-    if(msg.phase==='regions'){
-      renderCompareProgressDOM(85+(msg.done/msg.total)*10,'Detectando zonas');
-    }else{
-      renderCompareProgressDOM(50+(msg.done/msg.total)*35,'Calculando diferencias ΔE');
-    }
+    setCompareStage('Comparando píxel a píxel — ΔE2000');
   }else if(msg.type==='result'){
-    await announceStage(95,'Generando visualización');
+    await announceStage('Comparando píxel a píxel — ΔE2000');
     if(msg.runId!==currentRunId)return; // cancelado mientras se cedía el fotograma
 
     cW=msg.width;cH=msg.height;
@@ -463,7 +465,7 @@ async function onWorkerMessage(e){
     status.textContent='';
 
     renderTab(currentTab==='texto'?'overlay':currentTab);
-    renderCompareProgressDOM(100,'Completado');
+    setCompareStage('Análisis completo');
     finishCompareProgress();
     checkReady();
     threshSlider.disabled=false;
@@ -497,13 +499,33 @@ if(heroArtEl&&'IntersectionObserver' in window){
   new IntersectionObserver(entries=>setHeroArtPaused('offscreen',!entries[entries.length-1].isIntersecting)).observe(heroArtEl);
 }
 
-// ---- barra de progreso por etapas (compare()) ------------------------------
+// ---- etapa de comparación: una sola línea, escrita a máquina (compare()) ---
+// Sin barra ni porcentaje (rediseño v28): solo un <span> cuyo texto se
+// reemplaza letra a letra. `_stageTypeToken` invalida una escritura en curso
+// si llega una etiqueta nueva antes de terminar; si el texto pedido ya es el
+// que se está mostrando (o escribiendo), no hace nada — evita reiniciar la
+// animación en cada mensaje `progress` del worker, que llega con la misma
+// etiqueta muchas veces seguidas.
+let _stageTypeToken=0,_stageShownText='';
+function typewriteStage(text){
+  if(text===_stageShownText)return;
+  _stageShownText=text;
+  const token=++_stageTypeToken;
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){compareProgressStageEl.textContent=text;return;}
+  compareProgressStageEl.textContent='';
+  let i=0;
+  const step=()=>{
+    if(token!==_stageTypeToken)return;
+    i++;
+    compareProgressStageEl.textContent=text.slice(0,i);
+    if(i<text.length)setTimeout(step,15);
+  };
+  step();
+}
 
-function renderCompareProgressDOM(pct,label){
-  pct=Math.max(0,Math.min(100,pct));
-  compareProgressBarEl.style.width=pct+'%';
-  compareProgressPctEl.textContent=Math.round(pct)+'%';
-  if(label)compareProgressStageEl.textContent=label;
+function setCompareStage(label){
+  if(label)typewriteStage(label);
 }
 
 // Para transiciones de etapa que preceden un bloque pesado en el hilo
@@ -511,49 +533,26 @@ function renderCompareProgressDOM(pct,label){
 // fotogramas para que el navegador PINTE la etiqueta antes de bloquear.
 // No se usa en las actualizaciones de alta frecuencia del worker (ΔE/
 // regiones), que ya llegan intercaladas con el hilo principal libre.
-function announceStage(pct,label){
-  renderCompareProgressDOM(pct,label);
+function announceStage(label){
+  setCompareStage(label);
   return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-}
-
-function formatElapsed(ms){
-  const s=Math.round(ms/1000);
-  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-}
-
-function updateCompareTimeDisplay(pct){
-  const elapsed=performance.now()-compareStartTime;
-  let text='Transcurrido '+formatElapsed(elapsed);
-  if(pct>=50&&pct<100){
-    const estTotal=elapsed/(pct/100);
-    text+=' · restante ~'+formatElapsed(Math.max(0,estTotal-elapsed));
-  }
-  compareProgressTimeEl.textContent=text;
 }
 
 function showCompareProgress(){
   setHeroArtPaused('compare',true);
   cancelRequested=false;
-  compareStartTime=performance.now();
   compareProgressEl.style.display='block';
-  renderCompareProgressDOM(0,'Renderizando archivo A');
-  compareProgressTimeEl.textContent='Transcurrido 00:00';
-  clearInterval(compareTimerId);
-  compareTimerId=setInterval(()=>{
-    const pct=parseFloat(compareProgressBarEl.style.width)||0;
-    updateCompareTimeDisplay(pct);
-  },400);
+  _stageShownText='';
+  setCompareStage('Análisis a 600 ppp');
 }
 
 function finishCompareProgress(){
   setHeroArtPaused('compare',false);
-  clearInterval(compareTimerId);compareTimerId=null;
-  setTimeout(()=>{compareProgressEl.style.display='none';},600);
+  setTimeout(()=>{compareProgressEl.style.display='none';},1300);
 }
 
 function hideCompareProgress(){
   setHeroArtPaused('compare',false);
-  clearInterval(compareTimerId);compareTimerId=null;
   compareProgressEl.style.display='none';
 }
 
@@ -602,12 +601,12 @@ async function compare(){
     // B renderizadas de nuevo sobre el lienzo de la UNIÓN de páginas; el
     // excedente sobre la intersección real queda tramado (compareMaskGlobal),
     // igual que en el modo de 2 puntos.
-    await announceStage(0,'Renderizando archivo A');
+    await announceStage('Análisis a 600 ppp');
     let res;
     try{
       res=await buildLockedAlignedRegion(sourceA,sourceB,refA,refB,refA2,refB2,async(stageIdx)=>{
         if(runId!==currentRunId)throw new CompareCancelledError();
-        if(stageIdx===1)await announceStage(25,'Renderizando archivo B');
+        if(stageIdx===1)await announceStage('Análisis a 600 ppp');
       });
     }catch(err){
       hideCompareProgress();
@@ -635,8 +634,8 @@ async function compare(){
       rectB:{x:res.union.x0-t.dxPx,y:res.union.y0-t.dyPx}};
     updateLockedNotes(res);
   }else if(similarityMode){
-    await announceStage(0,'Renderizando archivo A');
-    await announceStage(25,'Renderizando archivo B');
+    await announceStage('Análisis a 600 ppp');
+    await announceStage('Análisis a 600 ppp');
     const sim=buildSimilarityAlignedRegion(sourceA,sourceB,refA,refA2,refB,refB2);
     if(runId!==currentRunId)return;
     if(sim.w<=0||sim.h<=0){
@@ -656,7 +655,7 @@ async function compare(){
     lastRegion={w:cW,h:cH,aligned:true,similarity:true};
     updateSimilarityNotes(sim);
   }else{
-    await announceStage(0,'Renderizando archivo A');
+    await announceStage('Análisis a 600 ppp');
     const region=computeAlignedRegion();
     if(region.w<=0||region.h<=0){
       hideCompareProgress();
@@ -674,7 +673,7 @@ async function compare(){
     comparedAreaPixels=cW*cH;
 
     imgAData=getPixelsRegion(sourceA,region.rectA,cW,cH);
-    await announceStage(25,'Renderizando archivo B');
+    await announceStage('Análisis a 600 ppp');
     if(runId!==currentRunId)return;
     imgBData=getPixelsRegion(sourceB,region.rectB,cW,cH);
 
@@ -687,7 +686,7 @@ async function compare(){
   const bufB=imgBData.data.buffer.slice(0);
   if(compareMaskGlobal)neutralizeMaskedPixels(bufB,imgAData.data,compareMaskGlobal);
 
-  await announceStage(50,'Calculando diferencias ΔE');
+  await announceStage('Comparando píxel a píxel — ΔE2000');
   if(runId!==currentRunId)return;
   const worker=getWorker();
   worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,minSizePct,bufA,bufB},[bufA,bufB]);

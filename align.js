@@ -154,8 +154,26 @@ function initAlignCanvas(which,source){
   applyAlignTransform(which);
 }
 
+// Consumido por app.js (handleFileSelected) al final de su propia cadena
+// async (tras reabrir por sobreimpresión, que puede volver a redibujar los
+// lienzos y cambiar sus alturas): si se hiciera scroll aquí mismo, dentro de
+// updateAlignSection, quedaría descuadrado en cuanto ese redibujado tardío
+// mueva el contenido.
+let _alignJustRevealed=false;
+function consumeAlignJustRevealed(){
+  const v=_alignJustRevealed;
+  _alignJustRevealed=false;
+  return v;
+}
+
 function updateAlignSection(){
   if(sourceA&&sourceB){
+    // Recién visible (primera vez que hay A y B a la vez): app.js baja la
+    // vista al terminar, para que el botón «Alinear archivos» y las
+    // previsualizaciones queden a la vista sin que el usuario tenga que
+    // buscarlas. Solo en esa transición, no en cada recálculo (p.ej. al
+    // cambiar de página de un PDF ya cargado).
+    const wasHidden=alignSection.style.display==='none';
     alignSection.style.display='block';
     initAlignCanvas('A',sourceA);
     initAlignCanvas('B',sourceB);
@@ -166,6 +184,7 @@ function updateAlignSection(){
     updateAlignFormatNotice();
     updateTransformSummary();
     drawAlignCoverage();
+    if(wasHidden)_alignJustRevealed=true;
   }else{
     alignSection.style.display='none';
   }

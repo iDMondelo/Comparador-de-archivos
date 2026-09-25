@@ -106,6 +106,12 @@ function formatBytesAuto(bytes){
 // `viability.level` devuelto por computeViability().
 function renderViabilityPanel(el,viability){
   const{estBytes,level,exceedsCanvasCeiling}=viability;
+  if(level==='green'){
+    el.innerHTML='✓ El análisis puede realizarse a 600 ppp.';
+    el.className='align-format-notice positive';
+    el.style.display='block';
+    return;
+  }
   const lines=[];
   lines.push('Análisis a 600 ppp');
   lines.push(`Memoria estimada: ${formatBytesAuto(estBytes)}`);
@@ -113,13 +119,11 @@ function renderViabilityPanel(el,viability){
     lines.push('Este archivo es demasiado grande para este navegador a 600 ppp. Prueba en Chrome (admite más resolución que Safari), cierra otras pestañas o recorta el PDF a la zona de interés.');
   }else if(level==='red'){
     lines.push('La memoria estimada supera la disponible en este navegador. Puedes forzar el análisis de todos modos, o antes cerrar otras pestañas o probar en Chrome.');
-  }else if(level==='amber'){
-    lines.push('El análisis es posible pero exigente. Cierra otras pestañas antes de continuar para reducir el riesgo de que el navegador se quede sin memoria.');
   }else{
-    lines.push('✓ El análisis puede realizarse.');
+    lines.push('El análisis es posible pero exigente. Cierra otras pestañas antes de continuar para reducir el riesgo de que el navegador se quede sin memoria.');
   }
 
   el.innerHTML=lines.join('<br>');
-  el.className='align-format-notice '+(level==='green'?'positive':level==='amber'?'warn':'danger');
+  el.className='align-format-notice '+(level==='amber'?'warn':'danger');
   el.style.display='block';
 }
