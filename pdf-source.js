@@ -168,10 +168,9 @@ function resetPdfControls(which){
   updateAnalysisResolutionIndicator();
 }
 
-// Indicador de solo lectura junto al interruptor de sobreimpresión (misma
-// fila, #renderOptionsRow, cuya visibilidad la sigue gobernando por completo
-// overprint.js — aquí solo se rellena el texto): la resolución fija de
-// análisis, sin desglose de dimensiones por archivo.
+// Indicador de solo lectura de la resolución fija de análisis, sin desglose
+// de dimensiones por archivo (aquí solo se rellena el texto; si el elemento
+// #analysisResolutionInfo no está en la página, no hace nada).
 function updateAnalysisResolutionIndicator(){
   if(!analysisResolutionInfoEl)return;
   const A=typeof sourceA!=='undefined'?sourceA:null,B=typeof sourceB!=='undefined'?sourceB:null;

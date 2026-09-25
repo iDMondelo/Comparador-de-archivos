@@ -24,7 +24,6 @@ const alignTransformWarnEl=document.getElementById('alignTransformWarn');
 const alignMethodBadgeEl=document.getElementById('alignMethodBadge');
 const alignFormatNoticeEl=document.getElementById('alignFormatNotice');
 const scaleLockRowEl=document.getElementById('scaleLockRow');
-const scaleLockStateEl=document.getElementById('scaleLockState');
 const scaleLockTextEl=document.getElementById('scaleLockText');
 const scaleLockToggleEl=document.getElementById('scaleLockToggle');
 const ALIGN_VECTOR_KINDS=['pdf','ai'];
@@ -178,7 +177,7 @@ function updateAlignSection(){
     initAlignCanvas('A',sourceA);
     initAlignCanvas('B',sourceB);
     scaleLocked=true;
-    if(scaleLockToggleEl)scaleLockToggleEl.checked=false;
+    if(scaleLockToggleEl)scaleLockToggleEl.checked=true;
     updateScaleLockUI();
     if(typeof updateVectorPickerEntryVisibility==='function')updateVectorPickerEntryVisibility();
     updateAlignFormatNotice();
@@ -190,25 +189,21 @@ function updateAlignSection(){
   }
 }
 
-// ---- bloqueo de escala: indicador + interruptor ----------------------------
+// ---- bloqueo de escala: casilla (marcada = escala bloqueada) ---------------
 
 function updateScaleLockUI(){
   if(!scaleLockRowEl)return;
   if(!scaleLockAvailable()){scaleLockRowEl.style.display='none';return;}
   scaleLockRowEl.style.display='flex';
-  const dpiTxt=(sourceA.dpi===sourceB.dpi)?` · PPP común: ${sourceA.dpi}`:'';
-  if(scaleLocked){
-    scaleLockTextEl.textContent='Escala bloqueada a 1:1 — ambos archivos declaran dimensiones físicas'+dpiTxt;
-    scaleLockStateEl.classList.remove('unlocked');
-  }else{
-    scaleLockTextEl.textContent='Escala desbloqueada — se calculará a partir de los elementos y obligará a remuestrear';
-    scaleLockStateEl.classList.add('unlocked');
-  }
+  scaleLockToggleEl.checked=scaleLocked;
+  scaleLockTextEl.textContent=scaleLocked
+    ?'Escala bloqueada a 1:1 — ambos archivos declaran dimensiones físicas'
+    :'Escala desbloqueada — se calculará a partir de los elementos y obligará a remuestrear';
 }
 
 if(scaleLockToggleEl){
   scaleLockToggleEl.onchange=()=>{
-    scaleLocked=!scaleLockToggleEl.checked;
+    scaleLocked=scaleLockToggleEl.checked;
     updateScaleLockUI();
     updateAlignFormatNotice();
     updateTransformSummary();

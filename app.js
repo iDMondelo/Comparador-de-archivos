@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'29',date:'2026-09-25',changes:[
+    '«Restablecer alineación» pasa a la derecha de «Alinear archivos», en estilo discreto, y «Simular sobreimpresión» se mueve a la misma línea que la escala bloqueada a 1:1.',
+    'Ambas opciones llevan ahora una casilla visible que indica si están activas (sustituye al candado) y se quita el texto «PPP común».'
+  ]},
   {version:'28',date:'2026-09-25',changes:[
     'Comparar se vuelve la acción principal (botón dorado y grande) con Reiniciar más pequeño debajo; el progreso de la comparación pasa de barra/%/tiempo a una sola línea escrita a máquina que termina en «Análisis completo».',
     'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable (centrada y con el mismo ancho que la barra del umbral ΔE), manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'25',date:'2026-09-24',changes:[
     'La alineación pasa a hacerse solo por elemento vectorial: se quita el marcado manual de puntos a clic (arrastrar un punto ya puesto y ajustarlo con el teclado se sigue pudiendo hacer igual que antes) y el botón se renombra a «Alinear archivos».',
     'Para archivos que no son PDF/.ai en ambos lados, la sección de alineación muestra ahora un aviso de que no está disponible para ese tipo de archivo, en vez de la explicación de los dos métodos.'
-  ]},
-  {version:'24',date:'2026-09-24',changes:[
-    'Vista de alineación simplificada: al cargar ambos archivos ahora solo se ve, centrado, el botón de alineación (o un aviso de una línea si no está disponible para ese tipo de archivo), sin el resto de explicaciones.',
-    'Las cajas de previsualización de cada archivo son más altas y cada una lleva ahora su propia leyenda de zoom («Rueda: zoom · Arrastrar: desplazar · Doble clic: restablecer»).'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
