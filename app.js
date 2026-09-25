@@ -12,7 +12,7 @@
 const VERSION_HISTORY=[
   {version:'28',date:'2026-09-25',changes:[
     'Comparar se vuelve la acción principal (botón dorado y grande) con Reiniciar más pequeño debajo; el progreso de la comparación pasa de barra/%/tiempo a una sola línea escrita a máquina que termina en «Análisis completo».',
-    'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable, manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
+    'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable (centrada y con el mismo ancho que la barra del umbral ΔE), manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
   ]},
   {version:'27',date:'2026-09-24',changes:[
     'Más limpieza antes de comparar: se quita el resumen de escala/giro/desplazamiento y la etiqueta «Ajustes de comparación», y el umbral ΔE pasa a una barra centrada de la mitad de ancho.',
