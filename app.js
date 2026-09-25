@@ -12,6 +12,9 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'32',date:'2026-09-25',changes:[
+    'Al terminar de comparar, la página baja sola hasta los resultados, sin tener que hacer scroll a mano.'
+  ]},
   {version:'31',date:'2026-09-25',changes:[
     'Se retira la opción «Simular sobreimpresión»: los PDF/.ai se muestran y comparan tal como los dibuja el archivo, sin reescribirlo (la simulación hacía desaparecer los objetos blancos sobreimpresos).',
     'El semáforo de fiabilidad deja de tener en cuenta la sobreimpresión.'
@@ -26,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'28',date:'2026-09-25',changes:[
     'Comparar se vuelve la acción principal (botón dorado y grande) con Reiniciar más pequeño debajo; el progreso de la comparación pasa de barra/%/tiempo a una sola línea escrita a máquina que termina en «Análisis completo».',
     'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable (centrada y con el mismo ancho que la barra del umbral ΔE), manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
-  ]},
-  {version:'27',date:'2026-09-24',changes:[
-    'Más limpieza antes de comparar: se quita el resumen de escala/giro/desplazamiento y la etiqueta «Ajustes de comparación», y el umbral ΔE pasa a una barra centrada de la mitad de ancho.',
-    'El panel de viabilidad se reduce a resolución, memoria estimada y el aviso final; cuando el archivo no es viable, el aviso recomienda probar otro navegador o recortar el PDF en vez de decir que no se puede.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -543,9 +542,24 @@ function showCompareProgress(){
   setCompareStage('Análisis a 600 ppp');
 }
 
+// Tras «Análisis completo», al ocultar la línea de progreso, baja la vista a
+// los resultados. Se hace después de ocultarla y no antes: esa línea queda por
+// encima de los resultados y, al colapsarse, el contenido subiría y dejaría la
+// vista descuadrada (Safari no compensa ese salto). Si mientras tanto se
+// canceló, se reinició o empezó otra comparación, no toca nada.
 function finishCompareProgress(){
   setHeroArtPaused('compare',false);
-  setTimeout(()=>{compareProgressEl.style.display='none';},1300);
+  const runId=currentRunId;
+  setTimeout(()=>{
+    if(runId!==currentRunId)return;
+    compareProgressEl.style.display='none';
+    if(statsRow.style.display!=='none')scrollToResults();
+  },1300);
+}
+
+function scrollToResults(){
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  statsRow.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
 }
 
 function hideCompareProgress(){
