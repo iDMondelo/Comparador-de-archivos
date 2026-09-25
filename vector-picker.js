@@ -591,6 +591,10 @@ function updateVectorPickerEntryVisibility(){
   if(!btn)return;
   const available=isVectorGeometryAvailable(typeof sourceA!=='undefined'?sourceA:null)&&isVectorGeometryAvailable(typeof sourceB!=='undefined'?sourceB:null);
   btn.style.display=available?'inline-flex':'none';
+  // Sin método vectorial no hay forma de colocar puntos (ya no hay clic
+  // manual), así que «Restablecer alineación» se muestra y oculta con él.
+  const reset=vpEl('btnResetRef');
+  if(reset)reset.style.display=available?'inline-flex':'none';
   const guide=vpEl('alignGuideText');
   if(guide)guide.style.display=available?'none':'block';
 }
