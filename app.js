@@ -9,6 +9,8 @@
 // array (más reciente primero) y, si ya hay 5, elimina el último. `version`
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
+// Al publicar, cambia también el `?v=` de los <script> propios de index.html
+// al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
   {version:'31',date:'2026-09-25',changes:[
     'Se retira la opción «Simular sobreimpresión»: los PDF/.ai se muestran y comparan tal como los dibuja el archivo, sin reescribirlo (la simulación hacía desaparecer los objetos blancos sobreimpresos).',
@@ -413,7 +415,7 @@ function updateLockedNotes(res){
 
 function getWorker(){
   if(!deWorker){
-    deWorker=new Worker('./de-worker.js');
+    deWorker=new Worker('./de-worker.js?v='+APP_VERSION);
     deWorker.onmessage=onWorkerMessage;
     deWorker.onerror=onWorkerError;
   }
