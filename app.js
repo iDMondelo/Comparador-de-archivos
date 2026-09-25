@@ -10,6 +10,9 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'30',date:'2026-09-25',changes:[
+    'Las cajas para soltar los archivos A y B son un poco más altas, para que sea más fácil acertar al arrastrar un archivo.'
+  ]},
   {version:'29',date:'2026-09-25',changes:[
     '«Restablecer alineación» pasa a la derecha de «Alinear archivos», en estilo discreto, y «Simular sobreimpresión» se mueve a la misma línea que la escala bloqueada a 1:1.',
     'Ambas opciones llevan ahora una casilla visible que indica si están activas (sustituye al candado) y se quita el texto «PPP común».'
@@ -25,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'26',date:'2026-09-24',changes:[
     'Limpieza de «Opciones de render»: se quita el desplegable y el texto de diagnóstico de sobreimpresión — antes de comparar solo se ve el umbral ΔE, «Análisis a 600 ppp» y la casilla «Simular sobreimpresión».',
     'El autoactivado de la simulación de sobreimpresión no cambia: sigue marcándose solo cuando el archivo realmente la tiene.'
-  ]},
-  {version:'25',date:'2026-09-24',changes:[
-    'La alineación pasa a hacerse solo por elemento vectorial: se quita el marcado manual de puntos a clic (arrastrar un punto ya puesto y ajustarlo con el teclado se sigue pudiendo hacer igual que antes) y el botón se renombra a «Alinear archivos».',
-    'Para archivos que no son PDF/.ai en ambos lados, la sección de alineación muestra ahora un aviso de que no está disponible para ese tipo de archivo, en vez de la explicación de los dos métodos.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
