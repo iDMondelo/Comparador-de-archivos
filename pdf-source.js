@@ -43,56 +43,20 @@ function checkRenderSize(w,h){
 }
 
 // Abre un PDF (o .ai PDF-compatible) y devuelve el documento, su nº de
-// páginas y la caché de sobreimpresión (overprint.js): bytes originales,
-// bytes reescritos y recuento. La reescritura se ejecuta siempre, aunque el
-// interruptor esté apagado, porque es también la detección. PDF.js
-// TRANSFIERE el buffer que recibe (lo deja vacío), por eso siempre se le
-// pasa una copia y la caché conserva los suyos.
+// páginas y los hechos para el semáforo de fiabilidad (pdf-facts.js, solo
+// lectura). PDF.js recibe los bytes originales sin tocar; los hechos se leen
+// antes porque PDF.js TRANSFIERE el buffer que recibe (lo deja vacío).
 async function openPdf(file){
   const pdfjsLib=await loadPdfJs();
-  const orig=new Uint8Array(await file.arrayBuffer());
-  const overprint=await prepareOverprint(orig,file.name);
-  let useRew=decideOverprintForNewFile(overprint)&&!!overprint.rew;
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  const pdfFacts=await analyzePdfFacts(bytes,file.name);
   let pdfDoc;
   try{
-    pdfDoc=await openPdfBytes(pdfjsLib,useRew?overprint.rew:overprint.orig);
+    pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;
   }catch(err){
-    if(!useRew)throw new Error('No se pudo abrir el archivo como PDF. Si es un .ai, puede estar en formato PostScript puro (no compatible).');
-    // El PDF reescrito no abre: se usa el original y se anula la simulación.
-    console.warn('Sobreimpresión — PDF.js no abre el archivo reescrito, se usa el original: ',err);
-    overprint.rew=null;
-    overprint.stats={error:'PDF.js no pudo abrir el archivo reescrito'};
-    useRew=false;
-    pdfDoc=await openPdfBytes(pdfjsLib,overprint.orig);
+    throw new Error('No se pudo abrir el archivo como PDF. Si es un .ai, puede estar en formato PostScript puro (no compatible).');
   }
-  overprint.applied=useRew;
-  return{pdfDoc,pageCount:pdfDoc.numPages,overprint};
-}
-
-function openPdfBytes(pdfjsLib,bytes){
-  return pdfjsLib.getDocument({data:bytes.slice()}).promise;
-}
-
-// Reabre una fuente ya cargada con los bytes que corresponden al estado
-// actual del interruptor de sobreimpresión y vuelve a renderizar la misma
-// página al mismo PPP. Devuelve true si hubo que reabrir. Llamada desde
-// syncOverprintMode() (overprint.js).
-async function reopenPdfSource(which){
-  const source=which==='A'?sourceA:sourceB;
-  if(!source||!source.pdfDoc||!source.overprint)return false;
-  const wantRew=isOverprintSimActive()&&!!source.overprint.rew;
-  if(source.overprint.applied===wantRew)return false;
-  const pdfjsLib=await loadPdfJs();
-  status.textContent='Renderizando página…';
-  const newDoc=await openPdfBytes(pdfjsLib,wantRew?source.overprint.rew:source.overprint.orig);
-  const oldDoc=source.pdfDoc;
-  source.pdfDoc=newDoc;
-  source.overprint.applied=wantRew;
-  oldDoc.destroy();
-  const r=await renderPdfPage(newDoc,source.pageNum,source.dpi);
-  Object.assign(source,r);
-  status.textContent='';
-  return true;
+  return{pdfDoc,pageCount:pdfDoc.numPages,pdfFacts};
 }
 
 // Única función de render de página PDF→canvas de toda la herramienta:
@@ -110,9 +74,8 @@ async function reopenPdfSource(which){
 // `canvasW`/`canvasH` (opcional): tamaño del lienzo si es distinto del de la
 // página (p. ej. el lienzo de comparación); por defecto, el de la página.
 //
-// Sobreimpresión: no es parámetro de esta función — se resuelve reescribiendo
-// los bytes del PDF antes de abrirlo (overprint.js/openPdf), así que las tres
-// fases, al recibir el mismo pdfDoc, la reflejan igual automáticamente.
+// Sobreimpresión: no se simula. PDF.js ignora /OP y el PDF se renderiza tal
+// cual, igual en A y en B (ver pdf-facts.js).
 //
 // Color de soporte: relleno blanco opaco fijo antes de pintar la página, para
 // que ningún archivo con zonas transparentes componga de forma distinta

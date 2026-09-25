@@ -1,21 +1,20 @@
 // ============================================================================
 // reliability.js — SEMÁFORO DE FIABILIDAD por archivo. Capa de presentación
 // pura: no analiza nada por su cuenta, solo interpreta los hechos que ya
-// calcula overprint.js (mismo parseo de pdf-lib, una vez por archivo) y
-// text-analysis.js (source.textMode). No toca el PDF, el motor de
-// comparación ni la alineación.
+// calcula pdf-facts.js (parseo de pdf-lib de solo lectura, una vez por
+// archivo) y text-analysis.js (source.textMode). No toca el PDF, el motor de
+// comparación ni la alineación. Sirve para saber si el archivo es un PDF
+// normalizado (tipo PDF/X-4); la sobreimpresión no es criterio.
 // ============================================================================
 
 // Un único motivo, el primero que aplique por severidad — no una lista.
 function computeReliability(source){
-  if(!source||!source.overprint)return null; // ráster: no aplica
-  const s=source.overprint.stats;
+  if(!source||!source.pdfFacts)return null; // ráster: no aplica
+  const s=source.pdfFacts;
   if(s.error)return{level:'red',reason:'No se pudo analizar el archivo'};
   if(s.encrypted)return{level:'red',reason:'Archivo cifrado'};
   if(s.nonPrintableAnnots>0)return{level:'red',reason:'Contiene anotaciones excluidas del render'};
-  if(s.opm0>0)return{level:'red',reason:'Sobreimpresión con OPM 0: el calado real no se reproduce'};
   if(!s.hasOutputIntent)return{level:'amber',reason:'Sin perfil de salida declarado'};
-  if(s.knockout>0)return{level:'amber',reason:'Grupo con sobreimpresión knockout sin aproximar'};
   if(source.textMode==='live'&&s.fontsNotEmbedded>0)return{level:'amber',reason:'Alguna fuente no está embebida'};
   return{level:'green',reason:null};
 }

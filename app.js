@@ -10,6 +10,10 @@
 // es el número que se muestra como "vX" — no lleva el prefijo "v". `date` en
 // formato AAAA-MM-DD. `changes` es un resumen de como mucho 2 frases.
 const VERSION_HISTORY=[
+  {version:'31',date:'2026-09-25',changes:[
+    'Se retira la opción «Simular sobreimpresión»: los PDF/.ai se muestran y comparan tal como los dibuja el archivo, sin reescribirlo (la simulación hacía desaparecer los objetos blancos sobreimpresos).',
+    'El semáforo de fiabilidad deja de tener en cuenta la sobreimpresión.'
+  ]},
   {version:'30',date:'2026-09-25',changes:[
     'Las cajas para soltar los archivos A y B son un poco más altas, para que sea más fácil acertar al arrastrar un archivo.'
   ]},
@@ -24,10 +28,6 @@ const VERSION_HISTORY=[
   {version:'27',date:'2026-09-24',changes:[
     'Más limpieza antes de comparar: se quita el resumen de escala/giro/desplazamiento y la etiqueta «Ajustes de comparación», y el umbral ΔE pasa a una barra centrada de la mitad de ancho.',
     'El panel de viabilidad se reduce a resolución, memoria estimada y el aviso final; cuando el archivo no es viable, el aviso recomienda probar otro navegador o recortar el PDF en vez de decir que no se puede.'
-  ]},
-  {version:'26',date:'2026-09-24',changes:[
-    'Limpieza de «Opciones de render»: se quita el desplegable y el texto de diagnóstico de sobreimpresión — antes de comparar solo se ve el umbral ΔE, «Análisis a 600 ppp» y la casilla «Simular sobreimpresión».',
-    'El autoactivado de la simulación de sobreimpresión no cambia: sigue marcándose solo cuando el archivo realmente la tiene.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -108,10 +108,10 @@ async function handleFileSelected(file,which){
     if(kind==='svg')throw new Error('El formato SVG no es compatible. Usa PDF, .ai, JPG o PNG.');
     let source;
     if(kind==='pdf'||kind==='ai'){
-      const{pdfDoc,pageCount,overprint}=await openPdf(file);
+      const{pdfDoc,pageCount,pdfFacts}=await openPdf(file);
       const dpi=ANALYSIS_DPI;
       const rendered=await renderPdfPage(pdfDoc,1,dpi);
-      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,overprint};
+      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,pdfFacts};
     }else{
       const rendered=await loadRaster(file);
       source={...rendered,file};
@@ -137,12 +137,8 @@ async function handleFileSelected(file,which){
       resetPdfControls(which);
       renderTextIndicator(which);
     }
-    // Sobreimpresión (overprint.js): si este archivo activa la simulación,
-    // el otro se reabre reescrito para que ambos reciban el mismo trato.
-    if(typeof syncOverprintMode==='function')await syncOverprintMode();
-    // Baja la vista solo tras el reabierto por sobreimpresión (puede volver a
-    // dibujar los lienzos y cambiar su altura); si se hiciera antes, un
-    // redibujado tardío la dejaría descuadrada.
+    // Baja la vista al final de la carga, ya con los lienzos dibujados; si se
+    // hiciera antes, un redibujado tardío la dejaría descuadrada.
     if(typeof consumeAlignJustRevealed==='function'&&consumeAlignJustRevealed()){
       const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
@@ -774,7 +770,6 @@ function resetAll(){
   updateViabilityPanel(false);
 
   resetPdfControls('A');resetPdfControls('B');
-  if(typeof resetOverprintUI==='function')resetOverprintUI();
   renderTextIndicator('A');renderTextIndicator('B');
   if(typeof clearTextDiff==='function')clearTextDiff();
   if(typeof clearRegions==='function')clearRegions();
@@ -823,7 +818,6 @@ document.getElementById('btnExportReport').onclick=()=>{
       giroGrados:Number(reportTransform.thetaDeg.toFixed(2))
     }:null,
     escalaBloqueada:!!(reportTransform&&reportTransform.locked),
-    sobreimpresionSimulada:(typeof isOverprintSimActive==='function')?isOverprintSimActive():false,
     desplazamientoPt:(reportTransform&&reportTransform.locked)?{dx:Number(reportTransform.dxPt.toFixed(3)),dy:Number(reportTransform.dyPt.toFixed(3))}:null,
     areaComparadaMm:(reportTransform&&reportTransform.locked)?{ancho:Number(ptToMm(reportTransform.areaPt.w).toFixed(2)),alto:Number(ptToMm(reportTransform.areaPt.h).toFixed(2))}:null,
     umbralDE:parseInt(threshSlider.value),
