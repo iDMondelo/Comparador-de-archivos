@@ -349,10 +349,9 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .vp-verify-preview{display:inline-block;border-radius:var(--radius-md);border:0.5px solid var(--border);overflow:hidden;background:var(--surface)}
 .vp-second-element-row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)}
 
-/* ---- opciones bajo «Alinear archivos»: bloqueo de escala 1:1 (align.js) y
-   simulación de sobreimpresión (overprint.js), en una misma línea discreta.
-   Cada casilla indica si la opción está activa; la visibilidad de cada una
-   la sigue gobernando su propio archivo (display:flex / none). ---- */
+/* ---- opciones bajo «Alinear archivos»: bloqueo de escala 1:1 (align.js),
+   en una línea discreta. La casilla indica si la opción está activa; su
+   visibilidad la gobierna align.js (display:flex / none). ---- */
 .align-options-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:var(--space-1) var(--space-4)}
 .align-option{display:none;align-items:center;gap:6px;font-size:var(--micro-size);line-height:1.5;color:var(--ink-faint);text-align:left;cursor:pointer}
 .align-option:hover{color:var(--ink-dim)}
@@ -629,7 +628,6 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="align-guide" id="alignGuideText">Alineación no disponible: este método solo funciona cuando ambos archivos son PDF o .ai.</div>
     <div class="align-options-row">
       <label class="align-option" id="scaleLockRow"><input type="checkbox" id="scaleLockToggle" checked> <span id="scaleLockText"></span></label>
-      <label class="align-option" id="renderOptionsRow" style="display:none"><input type="checkbox" id="overprintToggle"> <span>Simular sobreimpresión</span></label>
     </div>
   </div>
   <div class="align-transform-summary" id="alignTransformSummary"></div>
@@ -806,7 +804,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <ul>
           <li>Compara la apariencia final compuesta, no separaciones ni canales individuales de tinta.</li>
           <li>No compara tintas planas, sobreimpresión ni barnices por separado.</li>
-          <li>La simulación de sobreimpresión traduce los objetos sobreimpresos al modo Multiplicar. Es una aproximación visual válida para tintas planas y negro sobreimpreso, que es la práctica totalidad de los casos en artes finales. No sustituye a la previsualización de un RIP.</li>
+          <li>La sobreimpresión no se simula: los objetos sobreimpresos se muestran tal como los dibuja el PDF, calando el fondo.</li>
           <li>No sustituye a una revisión profesional de preimpresión; es una ayuda para localizar cambios rápido.</li>
         </ul>
       </div>
@@ -941,7 +939,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 <script src="./vector-geometry.js"></script>
 <script src="./vector-picker.js"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
-<script src="./overprint.js"></script>
+<script src="./pdf-facts.js"></script>
 <script src="./reliability.js"></script>
 <script src="./pdf-source.js"></script>
 <script src="./text-analysis.js"></script>

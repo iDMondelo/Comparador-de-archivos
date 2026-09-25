@@ -154,10 +154,9 @@ function initAlignCanvas(which,source){
 }
 
 // Consumido por app.js (handleFileSelected) al final de su propia cadena
-// async (tras reabrir por sobreimpresión, que puede volver a redibujar los
-// lienzos y cambiar sus alturas): si se hiciera scroll aquí mismo, dentro de
-// updateAlignSection, quedaría descuadrado en cuanto ese redibujado tardío
-// mueva el contenido.
+// async: si se hiciera scroll aquí mismo, dentro de updateAlignSection,
+// quedaría descuadrado en cuanto un redibujado tardío de los lienzos mueva
+// el contenido.
 let _alignJustRevealed=false;
 function consumeAlignJustRevealed(){
   const v=_alignJustRevealed;
