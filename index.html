@@ -65,6 +65,8 @@
   --sev-mid:#ffaa00;
   --sev-low:#00cc88;
   --region-mark:#FF00FF;
+  --diff-tint:#FF0090;
+  --diff-tint-alpha:0.55;
   --status-danger-deep:#a3312c;
   --status-danger-bg:#f7e9e8;
   --reliability-green:#1f9d55;
@@ -151,6 +153,9 @@ body{font-family:var(--font-ui);font-size:var(--body-md-size);line-height:var(--
 canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 #mainCanvas,#maskCanvas,#regionsCanvas{grid-area:1/1;max-width:none;max-height:none}
 #maskCanvas,#regionsCanvas{pointer-events:none}
+/* Apilado del visor: imagen < recuadros de Marcado < tramado sin cobertura <
+   recuadros de zonas. */
+#mainCanvas{z-index:0}#markedCanvas{z-index:1}#maskCanvas{z-index:2}#regionsCanvas{z-index:3}
 .zoom-box{position:fixed;z-index:999;pointer-events:none;border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface);padding:var(--space-2);box-shadow:var(--elevation-2);display:none}
 .zoom-box canvas{display:block;border-radius:var(--radius-xs)}
 .zoom-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);padding:4px 4px 0;line-height:1.6}
@@ -298,6 +303,21 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .region-row.active{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
 .region-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--region-mark);color:#08130e;font-weight:700;font-size:11px}
 .region-coords{font-family:var(--font-mono)}
+
+/* ---- vista «Marcado»: capa de recuadros, panel y tooltip de área ----
+   markedCanvas (recuadros, a tamaño de pantalla) y el panel solo se ven en
+   esta vista; en ella se ocultan la leyenda de severidad y el panel de
+   zonas, que no aplican. */
+#markedCanvas{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;pointer-events:none}
+#markedCanvas,#markedPanel{display:none}
+#resultsArea[data-view="marcado"] #markedCanvas,#resultsArea[data-view="marcado"] #markedPanel{display:block}
+#resultsArea[data-view="marcado"] .legend,#resultsArea[data-view="marcado"] #regionsPanel{display:none!important}
+#markedPanel{margin-top:var(--space-4);border:0.5px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--elevation-1);padding:var(--space-3) var(--space-4)}
+#markedSummary{margin:0 0 var(--space-3)}
+.area-badge{background:var(--canvas-tint);color:var(--ink)}
+.marked-tip{position:absolute;z-index:5;pointer-events:none;white-space:nowrap;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--elevation-2);padding:var(--space-1) var(--space-2);font-size:var(--caption-size);color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.marked-tip b{color:var(--ink)}
+.marked-tip[hidden]{display:none}
 
 /* ---- ayuda plegable ---- */
 .help-section{margin:var(--space-6) 0 var(--space-4);scroll-margin-top:88px}
@@ -689,9 +709,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="stat"><div class="val" id="sAreaCompared">—</div><div class="lbl">área comparada</div></div>
 </div>
 
-<div id="resultsArea" style="display:none">
+<div id="resultsArea" data-view="marcado" style="display:none">
   <div class="tabs">
-    <button class="tab active" data-tab="overlay">Overlay diferencias</button>
+    <button class="tab active" data-tab="marcado">Marcado</button>
+    <button class="tab" data-tab="overlay">Overlay diferencias</button>
     <button class="tab" data-tab="imgA">Imagen A</button>
     <button class="tab" data-tab="imgB">Imagen B</button>
     <button class="tab" data-tab="heatmap">Mapa ΔE</button>
@@ -706,8 +727,10 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </div>
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="mainCanvas"></canvas>
+      <canvas id="markedCanvas"></canvas>
       <canvas id="maskCanvas"></canvas>
       <canvas id="regionsCanvas"></canvas>
+      <div class="marked-tip" id="markedTip" role="tooltip" hidden></div>
     </div>
     <div class="hint">Mueve el cursor para ver valores ΔE · Rueda del ratón: zoom · Arrastrar: desplazar · Doble clic: restablecer</div>
 
@@ -727,6 +750,15 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
       </div>
       <div class="hint">Valores bajos detectan cambios pequeños como letras sueltas. Súbelo solo si aparecen demasiadas zonas de ruido.</div>
       <div class="regions-list" id="regionsList"></div>
+    </div>
+
+    <div id="markedPanel">
+      <div class="align-format-notice positive" id="markedSummary" role="status"></div>
+      <div class="regions-toolbar">
+        <label><input type="checkbox" id="markedHighlight" checked> Resaltar píxeles diferentes</label>
+        <span class="hint" style="margin:0">Clic en un área para ver su ΔE · Navega con ← → o N/P</span>
+      </div>
+      <div class="regions-list" id="markedList"></div>
     </div>
 
     <div class="btn-row">
@@ -780,7 +812,8 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
           <li>Carga la Imagen A (original) y la Imagen B (modificado).</li>
           <li>Si hace falta, marca los puntos de alineación antes de comparar.</li>
           <li>Pulsa «Comparar».</li>
-          <li>Revisa las zonas marcadas en la lista de zonas diferentes.</li>
+          <li>Revisa el resultado en la vista «Marcado»: la imagen B aparece en gris claro y cada área con diferencias, a color dentro de su recuadro. Haz clic en un área para ver su ΔE máximo y medio; el umbral ΔE decide qué cuenta como diferencia.</li>
+          <li>Si lo necesitas, pasa al overlay o al mapa ΔE y revisa la lista de zonas diferentes.</li>
         </ol>
       </div>
     </details>
@@ -950,22 +983,23 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 </div>
 
-<script src="./canvas-view.js?v=33"></script>
-<script src="./similarity.js?v=33"></script>
-<script src="./nudge.js?v=33"></script>
-<script src="./physical-align.js?v=33"></script>
-<script src="./viability.js?v=33"></script>
-<script src="./align.js?v=33"></script>
-<script src="./vector-geometry.js?v=33"></script>
-<script src="./vector-picker.js?v=33"></script>
+<script src="./canvas-view.js?v=34"></script>
+<script src="./similarity.js?v=34"></script>
+<script src="./nudge.js?v=34"></script>
+<script src="./physical-align.js?v=34"></script>
+<script src="./viability.js?v=34"></script>
+<script src="./align.js?v=34"></script>
+<script src="./vector-geometry.js?v=34"></script>
+<script src="./vector-picker.js?v=34"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
-<script src="./pdf-facts.js?v=33"></script>
-<script src="./reliability.js?v=33"></script>
-<script src="./pdf-source.js?v=33"></script>
-<script src="./text-analysis.js?v=33"></script>
-<script src="./diff-areas.js?v=33"></script>
-<script src="./threshold-control.js?v=33"></script>
-<script src="./regions-panel.js?v=33"></script>
-<script src="./app.js?v=33"></script>
+<script src="./pdf-facts.js?v=34"></script>
+<script src="./reliability.js?v=34"></script>
+<script src="./pdf-source.js?v=34"></script>
+<script src="./text-analysis.js?v=34"></script>
+<script src="./diff-areas.js?v=34"></script>
+<script src="./threshold-control.js?v=34"></script>
+<script src="./regions-panel.js?v=34"></script>
+<script src="./marked-panel.js?v=34"></script>
+<script src="./app.js?v=34"></script>
 </body>
 </html>

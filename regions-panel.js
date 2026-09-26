@@ -63,7 +63,8 @@ function paintRegions(targetCtx,screenScale){
 function drawRegionsOverlay(){
   if(!regionsCanvas.width||!regionsCanvas.height)return;
   rctx.clearRect(0,0,regionsCanvas.width,regionsCanvas.height);
-  if(!regionsVisible)return;
+  // En «Marcado» los recuadros son los de las áreas (canvas-view.js).
+  if(!regionsVisible||currentTab==='marcado')return;
   const st=viewState[currentTab]||viewState.overlay;
   paintRegions(rctx,fitScale()*st.zoom);
 }
@@ -118,7 +119,7 @@ function stepRegion(delta){
 }
 
 document.addEventListener('keydown',e=>{
-  if(!currentRegions.length||regionsPanelWrap.style.display==='none')return;
+  if(!currentRegions.length||regionsPanelWrap.style.display==='none'||currentTab==='marcado')return;
   const tag=(e.target.tagName||'').toLowerCase();
   if(tag==='input'||tag==='select'||tag==='textarea')return;
   if(e.key==='ArrowRight'||e.key==='n'||e.key==='N'){e.preventDefault();stepRegion(1);}
