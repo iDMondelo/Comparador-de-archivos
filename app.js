@@ -12,6 +12,10 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'34',date:'2026-09-26',changes:[
+    'Nueva vista «Marcado», la primera tras comparar: la imagen B se ve lavada en gris claro y cada área con diferencias aparece a color dentro de un recuadro, con los píxeles que superan el umbral resaltados en rosa.',
+    'El panel indica cuántas áreas hay y se actualiza al mover el umbral; un clic en un área, en la lista o en la imagen, muestra su ΔE máximo y medio.'
+  ]},
   {version:'33',date:'2026-09-26',changes:[
     'El umbral ΔE va ahora de 0,5 a 10,0 con coma decimal: se escribe en su campo o se ajusta con un deslizador graduado de Baja (más estricto) a Alta (más tolerante), con más recorrido en la zona útil 0,5–3.',
     'Al moverlo se re-umbraliza el mapa ΔE ya calculado sin volver a comparar, así que la vista se actualiza al momento; las zonas se recalculan al soltarlo.'
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   ]},
   {version:'30',date:'2026-09-25',changes:[
     'Las cajas para soltar los archivos A y B son un poco más altas, para que sea más fácil acertar al arrastrar un archivo.'
-  ]},
-  {version:'29',date:'2026-09-25',changes:[
-    '«Restablecer alineación» pasa a la derecha de «Alinear archivos», en estilo discreto, y «Simular sobreimpresión» se mueve a la misma línea que la escala bloqueada a 1:1.',
-    'Ambas opciones llevan ahora una casilla visible que indica si están activas (sustituye al candado) y se quita el texto «PPP común».'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -64,7 +64,7 @@ const btnCancelCompare=document.getElementById('btnCancelCompare');
 let lastViability=null;
 let cancelRequested=false;
 
-let sourceA=null,sourceB=null,currentTab='overlay';
+let sourceA=null,sourceB=null,currentTab='marcado';
 let overlayData=null,heatmapData=null,pixelDEmap=null;
 let imgAData=null,imgBData=null;
 let cW=0,cH=0;
@@ -276,6 +276,7 @@ function hideResults(){
   diffIndex=null;overlayThreshold=null;
   lastRegion=null;
   if(typeof clearRegions==='function')clearRegions();
+  if(typeof clearMarked==='function')clearMarked();
   if(typeof clearTextDiff==='function')clearTextDiff();
 }
 
@@ -299,6 +300,9 @@ function onThresholdApplied(t){
   overlayThreshold=t;
   updateDiffStats();
   if(currentTab==='overlay'&&mainCanvas.width===cW&&mainCanvas.height===cH)putOverlayBands(bands);
+  // Vista «Marcado»: mismo ciclo re-umbralizar → redibujar (áreas en
+  // diff-areas.js, dibujo en canvas-view.js).
+  if(typeof onMarkedThreshold==='function')onMarkedThreshold(t);
 }
 
 // Valor confirmado (al soltar el deslizador, con cada flecha o al validar el
@@ -476,7 +480,8 @@ async function onWorkerMessage(e){
     resultsArea.style.display='block';
     status.textContent='';
 
-    renderTab(currentTab==='texto'?'overlay':currentTab);
+    // «Marcado» es la vista por defecto tras cada comparación.
+    selectTab('marcado');
     setCompareStage('Análisis completo');
     finishCompareProgress();
     checkReady();
@@ -494,6 +499,7 @@ function onWorkerError(err){
   terminateWorker();
   overlayData=null;heatmapData=null;pixelDEmap=null;
   diffIndex=null;overlayThreshold=null;
+  if(typeof clearMarked==='function')clearMarked();
   hideCompareProgress();
   status.innerHTML='El navegador se quedó sin memoria durante el análisis.<br>'+
     '· Probar en Chrome, que admite canvas mayores que Safari<br>'+
@@ -627,8 +633,10 @@ async function compare(){
   showCompareProgress();
 
   // cW/cH e imgAData cambian a partir de aquí: el overlay en pantalla deja de
-  // poder re-umbralizarse hasta que llegue el resultado nuevo.
+  // poder re-umbralizarse hasta que llegue el resultado nuevo. La imagen
+  // lavada de «Marcado» se libera ya: esa memoria le hace falta al cálculo.
   diffIndex=null;overlayThreshold=null;
+  if(typeof clearMarked==='function')clearMarked();
 
   const similarityMode=!!(refA&&refB&&refA2&&refB2);
   const lockedMode=typeof isScaleLockActive==='function'&&isScaleLockActive();
@@ -813,25 +821,33 @@ function renderTab(tab){
   else if(tab==='imgA'){ctx.putImageData(imgAData,0,0);}
   else if(tab==='imgB'){ctx.putImageData(imgBData,0,0);}
   else if(tab==='heatmap'){ctx.putImageData(heatmapData,0,0);}
+  else if(tab==='marcado'){ctx.putImageData(getWashedData(),0,0);}
   applyCanvasTransform();
+  // Los parches de «Marcado» se construyen a la escala ya aplicada en pantalla.
+  if(tab==='marcado')enterMarkedView();
   if(typeof drawMaskOverlay==='function')drawMaskOverlay();
   if(typeof drawRegionsOverlay==='function')drawRegionsOverlay();
 }
 
+// resultsArea.dataset.view permite al CSS mostrar lo propio de cada vista
+// (p. ej. el panel de «Marcado» en lugar de la leyenda y las zonas).
+function selectTab(tab){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+  currentTab=tab;
+  resultsArea.dataset.view=tab;
+  if(typeof hideMarkedTip==='function')hideMarkedTip();
+  if(currentTab==='texto'){
+    imageTabsPane.style.display='none';
+    textPane.style.display='block';
+  }else{
+    textPane.style.display='none';
+    imageTabsPane.style.display='block';
+    renderTab(currentTab);
+  }
+}
+
 document.querySelectorAll('.tab').forEach(t=>{
-  t.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    currentTab=t.dataset.tab;
-    if(currentTab==='texto'){
-      imageTabsPane.style.display='none';
-      textPane.style.display='block';
-    }else{
-      textPane.style.display='none';
-      imageTabsPane.style.display='block';
-      renderTab(currentTab);
-    }
-  };
+  t.onclick=()=>selectTab(t.dataset.tab);
 });
 
 function resetAll(){
@@ -866,6 +882,7 @@ function resetAll(){
   renderTextIndicator('A');renderTextIndicator('B');
   if(typeof clearTextDiff==='function')clearTextDiff();
   if(typeof clearRegions==='function')clearRegions();
+  if(typeof clearMarked==='function')clearMarked();
 
   statsRow.style.display='none';
   resultsArea.style.display='none';
