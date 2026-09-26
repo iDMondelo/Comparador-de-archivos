@@ -31,6 +31,8 @@ The app is organized as strict layers around one engine. **Read the header comme
 - **Presentation layer** — consumes engine/input-layer output, never computes comparison results itself.
   - `canvas-view.js` — main viewer: zoom/pan via CSS transform, pixel-inspection loupe, keeps the region-box canvas in sync with the image canvas.
   - `regions-panel.js` — draws difference-region boxes on a canvas stacked above the image (never inside the engine's `ImageData`) and drives the region list panel; only reads results already computed by the worker (`regionsResult` message).
+  - `threshold-control.js` — the «Umbral ΔE» control (0,5–10,0, non-linear 40-step slider + comma-decimal text field, kept in sync). Single source of truth for the threshold (`getThresholdDE`/`setThresholdDE`); notifies `app.js` through global hooks (`onThresholdApplied`, coalesced per animation frame; `onThresholdCommitted`, on release/validation). Moving it must never post to the worker — `app.js` re-thresholds the cached `pixelDEmap` incrementally, and the worker's region recompute runs only on commit.
+  - `diff-areas.js` — dependency-free summaries of the ΔE map: `buildDiffCellIndex` (max ΔE per 8×8 cell, built once per comparison) lets re-thresholding touch only cells that can change instead of the whole image.
   - `app.js` — orchestration: file lifecycle (raster/PDF/.ai), tabs, driving `compare()`, staged progress UI, export. This is the only place that talks to the worker directly; its contract with the engine is "send `ImageData`, receive results" — it must not duplicate color math.
 
 When changing one file, check whether its header comment names files it explicitly must not affect — that constraint is usually the point of the layering.

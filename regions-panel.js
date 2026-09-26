@@ -82,7 +82,7 @@ function renderRegionsList(){
     `<div class="region-row${r.id===selectedRegionId?' active':''}" data-id="${r.id}">`+
     `<span class="region-badge">${r.id}</span>`+
     `<span>${r.w}×${r.h}px</span>`+
-    `<span>ΔE máx ${r.deMaxRegion.toFixed(1)}</span>`+
+    `<span>ΔE máx ${formatDE(r.deMaxRegion)}</span>`+
     `<span class="region-coords">(${r.x}, ${r.y})</span>`+
     `</div>`
   ).join(''):'<div class="hint">Sin zonas detectadas con los parámetros actuales.</div>';
@@ -138,15 +138,17 @@ strokeSizeInput.oninput=()=>{
 };
 
 // Pide al worker que recalcule regiones a partir del deMap ya cacheado
-// (sin repetir rgbToLab/deltaE2000), con un pequeño debounce para no
-// saturar el worker mientras el usuario arrastra el umbral.
+// (sin repetir rgbToLab/deltaE2000), con un pequeño debounce. Para el umbral
+// solo se llama al confirmar el valor (app.js, onThresholdCommitted): al
+// soltar el deslizador o por cada flecha, nunca en cada fotograma del
+// arrastre.
 function requestRegionsUpdate(){
   if(!deWorker||!currentRunId||!pixelDEmap)return;
   clearTimeout(regionsDebounceTimer);
   regionsDebounceTimer=setTimeout(()=>{
     deWorker.postMessage({
       type:'regions',runId:currentRunId,
-      threshold:parseInt(threshSlider.value),
+      threshold:getThresholdDE(),
       minSizePct:parseFloat(minSizeInput.value)||0.1
     });
   },150);

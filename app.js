@@ -12,6 +12,10 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'33',date:'2026-09-26',changes:[
+    'El umbral ΔE va ahora de 0,5 a 10,0 con coma decimal: se escribe en su campo o se ajusta con un deslizador graduado de Baja (más estricto) a Alta (más tolerante), con más recorrido en la zona útil 0,5–3.',
+    'Al moverlo se re-umbraliza el mapa ΔE ya calculado sin volver a comparar, así que la vista se actualiza al momento; las zonas se recalculan al soltarlo.'
+  ]},
   {version:'32',date:'2026-09-25',changes:[
     'Al terminar de comparar, la página baja sola hasta los resultados, sin tener que hacer scroll a mano.'
   ]},
@@ -25,10 +29,6 @@ const VERSION_HISTORY=[
   {version:'29',date:'2026-09-25',changes:[
     '«Restablecer alineación» pasa a la derecha de «Alinear archivos», en estilo discreto, y «Simular sobreimpresión» se mueve a la misma línea que la escala bloqueada a 1:1.',
     'Ambas opciones llevan ahora una casilla visible que indica si están activas (sustituye al candado) y se quita el texto «PPP común».'
-  ]},
-  {version:'28',date:'2026-09-25',changes:[
-    'Comparar se vuelve la acción principal (botón dorado y grande) con Reiniciar más pequeño debajo; el progreso de la comparación pasa de barra/%/tiempo a una sola línea escrita a máquina que termina en «Análisis completo».',
-    'Se quita el aviso técnico de «Escala bloqueada a 1:1» y el panel de viabilidad se reduce a una frase cuando el análisis es viable (centrada y con el mismo ancho que la barra del umbral ΔE), manteniendo el detalle solo cuando hace falta decidir algo (memoria justa, archivo muy grande).'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -44,8 +44,8 @@ const statsRow=document.getElementById('statsRow');
 const resultsArea=document.getElementById('resultsArea');
 const imageTabsPane=document.getElementById('imageTabsPane');
 const textPane=document.getElementById('textPane');
-const threshSlider=document.getElementById('thresh');
-const threshVal=document.getElementById('threshVal');
+// threshSlider/threshInput y el valor del umbral viven en threshold-control.js
+// (getThresholdDE/setThresholdDE); aquí solo se reacciona a sus cambios.
 const legendThreshVal=document.getElementById('legendThreshVal');
 
 // ---- viabilidad (memoria/canvas a ANALYSIS_DPI) y progreso por etapas -----
@@ -75,6 +75,10 @@ let reportRefA=null,reportRefB=null,reportOffset={dx:0,dy:0};
 let reportTransform=null;
 let lastRegion=null;
 let compareMaskGlobal=null,comparedAreaPixels=0;
+// Índice por celdas del mapa ΔE (diff-areas.js), construido una vez por
+// comparación. overlayThreshold: umbral con el que está coloreado ahora mismo
+// overlayData (al principio, el que se envió al worker en compare()).
+let diffIndex=null,overlayThreshold=null,compareThreshold=null;
 
 // ---- sugerencia adaptativa de umbral ΔE ------------------------------------
 let threshUserOverridden=false; // true en cuanto el usuario toca el slider a mano: deja de autoajustarse el resto de la sesión
@@ -269,39 +273,51 @@ function hideResults(){
   resultsArea.style.display='none';
   noteBox.style.display='none';
   overlayData=null;heatmapData=null;pixelDEmap=null;
+  diffIndex=null;overlayThreshold=null;
   lastRegion=null;
   if(typeof clearRegions==='function')clearRegions();
   if(typeof clearTextDiff==='function')clearTextDiff();
 }
 
-threshSlider.oninput=()=>{
+// ---- ganchos de threshold-control.js ---------------------------------------
+
+function onThresholdUserInput(){
   threshUserOverridden=true;
   threshSuggestNote.style.display='none';
-  threshVal.textContent=threshSlider.value;
-  legendThreshVal.textContent=threshSlider.value;
-  if(!pixelDEmap)return;
-  recolorFromThreshold(parseInt(threshSlider.value));
-  if(typeof requestRegionsUpdate==='function')requestRegionsUpdate();
-};
+}
+
+// Una vez por fotograma como mucho (requestAnimationFrame en
+// threshold-control.js). Solo re-umbraliza el mapa ΔE ya calculado y
+// redibuja la vista activa: nunca habla con el worker — a 600 ppp, relanzar
+// cualquier trabajo en él en cada fotograma haría el control inutilizable.
+function onThresholdApplied(t){
+  legendThreshVal.textContent=formatDE(t);
+  // Sin índice no hay resultado vigente (o hay una comparación en curso, que
+  // aplicará el umbral actual al terminar): no se toca overlayData.
+  if(!pixelDEmap||!overlayData||!diffIndex||overlayThreshold===null)return;
+  const bands=updateOverlayForThreshold(overlayThreshold,t);
+  overlayThreshold=t;
+  updateDiffStats();
+  if(currentTab==='overlay'&&mainCanvas.width===cW&&mainCanvas.height===cH)putOverlayBands(bands);
+}
+
+// Valor confirmado (al soltar el deslizador, con cada flecha o al validar el
+// campo): solo entonces se recalculan en el worker las zonas de
+// regions-panel.js, con su debounce — una vez por gesto, no por fotograma.
+function onThresholdCommitted(){
+  if(pixelDEmap&&typeof requestRegionsUpdate==='function')requestRegionsUpdate();
+}
 
 // Sugiere (no impone) un umbral de 2 cuando hay una fuente probable de ruido
 // que el umbral existe para filtrar: compresión JPG o remuestreo de una
 // alineación con transformación de escala/giro. Nunca actúa si el usuario ya
-// ha tocado el slider a mano.
+// ha tocado el umbral a mano.
 function suggestThreshold(reason){
   if(threshUserOverridden)return;
-  if(parseInt(threshSlider.value)<2){
-    threshSlider.value='2';
-    threshVal.textContent='2';
-    legendThreshVal.textContent='2';
-    if(pixelDEmap){
-      recolorFromThreshold(2);
-      if(typeof requestRegionsUpdate==='function')requestRegionsUpdate();
-    }
-  }
+  if(getThresholdDE()<2)setThresholdDE(2,{commit:true});
   threshSuggestNote.textContent=reason==='jpg'
-    ?'Umbral ajustado a 2 por compresión JPG'
-    :'Umbral ajustado a 2 por remuestreo de alineación';
+    ?'Umbral ajustado a 2,0 por compresión JPG'
+    :'Umbral ajustado a 2,0 por remuestreo de alineación';
   threshSuggestNote.style.display='block';
 }
 
@@ -445,13 +461,13 @@ async function onWorkerMessage(e){
     overlayData=new ImageData(new Uint8ClampedArray(msg.overlayBuf),cW,cH);
     heatmapData=new ImageData(new Uint8ClampedArray(msg.heatmapBuf),cW,cH);
     pixelDEmap=new Float32Array(msg.deMapBuf);
+    diffIndex=buildDiffCellIndex(pixelDEmap,cW,cH);
+    overlayThreshold=compareThreshold;
     diffCount=msg.diffCount;deMax=msg.deMax;
-    pctDiff=diffCount/comparedAreaPixels*100;
     resetViewState();
 
-    document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
-    document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
-    document.getElementById('sDEmax').textContent=deMax.toFixed(1);
+    updateDiffStats();
+    document.getElementById('sDEmax').textContent=formatDE(deMax);
     document.getElementById('sAreaCompared').textContent=(reportTransform&&reportTransform.locked)
       ?formatSizeMm(reportTransform.areaPt)
       :Math.round(comparedAreaPixels/(cW*cH)*100)+'%';
@@ -464,20 +480,27 @@ async function onWorkerMessage(e){
     setCompareStage('Análisis completo');
     finishCompareProgress();
     checkReady();
-    threshSlider.disabled=false;
+    setThresholdControlDisabled(false);
+    // Por si el umbral cambió mientras se comparaba (p. ej. una sugerencia
+    // automática): se re-umbraliza desde el valor con que se comparó.
+    if(getThresholdDE()!==overlayThreshold){
+      onThresholdApplied(getThresholdDE());
+      onThresholdCommitted();
+    }
   }
 }
 
 function onWorkerError(err){
   terminateWorker();
   overlayData=null;heatmapData=null;pixelDEmap=null;
+  diffIndex=null;overlayThreshold=null;
   hideCompareProgress();
   status.innerHTML='El navegador se quedó sin memoria durante el análisis.<br>'+
     '· Probar en Chrome, que admite canvas mayores que Safari<br>'+
     '· Cerrar otras pestañas y aplicaciones<br>'+
     '· Recortar el PDF a la zona de interés antes de compararlo';
   checkReady();
-  threshSlider.disabled=false;
+  setThresholdControlDisabled(false);
 }
 
 // ---- ilustración de la cabecera: pausa de su animación ----------------------
@@ -577,7 +600,7 @@ function cancelCompare(){
   hideCompareProgress();
   status.textContent='Comparación cancelada.';
   checkReady();
-  threshSlider.disabled=false;
+  setThresholdControlDisabled(false);
 }
 btnCancelCompare.onclick=cancelCompare;
 
@@ -600,8 +623,12 @@ async function compare(){
   const runId=currentRunId;
   status.textContent='';
   btnCompare.disabled=true;
-  threshSlider.disabled=true;
+  setThresholdControlDisabled(true);
   showCompareProgress();
+
+  // cW/cH e imgAData cambian a partir de aquí: el overlay en pantalla deja de
+  // poder re-umbralizarse hasta que llegue el resultado nuevo.
+  diffIndex=null;overlayThreshold=null;
 
   const similarityMode=!!(refA&&refB&&refA2&&refB2);
   const lockedMode=typeof isScaleLockActive==='function'&&isScaleLockActive();
@@ -624,7 +651,7 @@ async function compare(){
       if(err instanceof CompareCancelledError)return;
       status.textContent='Error al alinear: '+err.message;
       checkReady();
-      threshSlider.disabled=false;
+      setThresholdControlDisabled(false);
       return;
     }
     if(runId!==currentRunId)return;
@@ -653,7 +680,7 @@ async function compare(){
       hideCompareProgress();
       status.textContent='Error: la imagen A no tiene tamaño válido.';
       checkReady();
-      threshSlider.disabled=false;
+      setThresholdControlDisabled(false);
       return;
     }
     cW=sim.w;cH=sim.h;
@@ -672,7 +699,7 @@ async function compare(){
       hideCompareProgress();
       status.textContent='Error: no hay superposición entre las imágenes con los puntos de referencia elegidos.';
       checkReady();
-      threshSlider.disabled=false;
+      setThresholdControlDisabled(false);
       return;
     }
     cW=region.w;cH=region.h;
@@ -691,7 +718,8 @@ async function compare(){
     updateNotes(region);
   }
 
-  const thresh=parseInt(threshSlider.value);
+  const thresh=getThresholdDE();
+  compareThreshold=thresh;
   const minSizePct=parseFloat(minSizeInput.value)||0.1;
   const bufA=imgAData.data.buffer.slice(0);
   const bufB=imgBData.data.buffer.slice(0);
@@ -703,30 +731,78 @@ async function compare(){
   worker.postMessage({type:'compute',runId,width:cW,height:cH,threshold:thresh,minSizePct,bufA,bufB},[bufA,bufB]);
 }
 
-function recolorFromThreshold(thresh){
-  if(!pixelDEmap)return;
-  const n=cW*cH;
-  const dA=imgAData.data;
-  let count=0;
-  for(let i=0;i<n;i++){
-    const o=i*4;
-    const de=pixelDEmap[i];
-    if(de>=thresh){
-      count++;
-      let or_,og,ob;
-      if(de>15){or_=255;og=59;ob=59;}
-      else if(de>5){or_=255;og=170;ob=0;}
-      else{or_=0;og=204;ob=136;}
-      overlayData.data[o]=or_;overlayData.data[o+1]=og;overlayData.data[o+2]=ob;overlayData.data[o+3]=210;
-    }else{
-      overlayData.data[o]=dA[o];overlayData.data[o+1]=dA[o+1];overlayData.data[o+2]=dA[o+2];overlayData.data[o+3]=80;
-    }
-  }
-  diffCount=count;
-  pctDiff=count/comparedAreaPixels*100;
+function updateDiffStats(){
+  pctDiff=diffCount/comparedAreaPixels*100;
   document.getElementById('sDiff').textContent=diffCount.toLocaleString('es');
   document.getElementById('sPct').textContent=pctDiff.toFixed(1)+'%';
-  if(currentTab==='overlay')renderTab('overlay');
+}
+
+// Re-umbraliza overlayData pasando de prevT a t. Da el mismo overlayData,
+// byte a byte, y el mismo diffCount que recolorear la imagen entera con t
+// (misma clasificación, colores y alfas que el bucle de de-worker.js), pero
+// recorre solo las celdas del índice (diff-areas.js) cuyo ΔE máximo alcanza
+// el menor de los dos umbrales y, dentro de ellas, solo los píxeles con ΔE
+// en [menor, mayor) — los únicos que cambian de clase. Devuelve las franjas
+// tocadas, [fila de celdas, primera columna, última columna], para subir
+// solo esas con putImageData.
+function updateOverlayForThreshold(prevT,t){
+  const bands=[];
+  if(prevT===t)return bands;
+  const lo=Math.min(prevT,t),hi=Math.max(prevT,t);
+  const{cell,gw,gh,cellMax}=diffIndex;
+  const od=overlayData.data,dA=imgAData.data,deMap=pixelDEmap;
+  let delta=0;
+  for(let cy=0;cy<gh;cy++){
+    const y0=cy*cell,y1=Math.min(cH,y0+cell);
+    let first=-1,last=-1;
+    for(let cx=0;cx<gw;cx++){
+      if(!(cellMax[cy*gw+cx]>=lo))continue;
+      const x0=cx*cell,x1=Math.min(cW,x0+cell);
+      let touched=false;
+      for(let y=y0;y<y1;y++){
+        for(let i=y*cW+x0,end=y*cW+x1;i<end;i++){
+          const de=deMap[i];
+          if(!(de>=lo&&de<hi))continue;
+          touched=true;
+          const o=i*4;
+          if(de>=t){
+            delta++;
+            let or_,og,ob;
+            if(de>15){or_=255;og=59;ob=59;}
+            else if(de>5){or_=255;og=170;ob=0;}
+            else{or_=0;og=204;ob=136;}
+            od[o]=or_;od[o+1]=og;od[o+2]=ob;od[o+3]=210;
+          }else{
+            delta--;
+            od[o]=dA[o];od[o+1]=dA[o+1];od[o+2]=dA[o+2];od[o+3]=80;
+          }
+        }
+      }
+      if(touched){if(first<0)first=cx;last=cx;}
+    }
+    if(first>=0)bands.push([cy,first,last]);
+  }
+  diffCount+=delta;
+  return bands;
+}
+
+// Sube a mainCanvas solo las franjas de overlayData que cambiaron. Franjas
+// de filas de celdas consecutivas se agrupan en un único rectángulo (unión
+// de columnas) para no hacer cientos de llamadas pequeñas.
+function putOverlayBands(bands){
+  const cell=diffIndex.cell;
+  let run=null;
+  const flush=()=>{
+    if(!run)return;
+    const x=run.c0*cell,y=run.r0*cell;
+    ctx.putImageData(overlayData,0,0,x,y,Math.min(cW,(run.c1+1)*cell)-x,Math.min(cH,(run.r1+1)*cell)-y);
+    run=null;
+  };
+  for(const[cy,c0,c1]of bands){
+    if(run&&cy===run.r1+1){run.r1=cy;run.c0=Math.min(run.c0,c0);run.c1=Math.max(run.c1,c1);}
+    else{flush();run={r0:cy,r1:cy,c0,c1};}
+  }
+  flush();
 }
 
 function renderTab(tab){
@@ -770,6 +846,7 @@ function resetAll(){
   sourceA=null;sourceB=null;
   imgAData=null;imgBData=null;
   overlayData=null;heatmapData=null;pixelDEmap=null;
+  diffIndex=null;overlayThreshold=null;
   cW=0;cH=0;
   diffCount=0;deMax=0;pctDiff=0;
   reportRefA=null;reportRefB=null;reportOffset={dx:0,dy:0};reportTransform=null;
@@ -782,7 +859,7 @@ function resetAll(){
   nameA.textContent='ningún archivo';nameB.textContent='ningún archivo';
   dropA.classList.remove('filled');dropB.classList.remove('filled');
   btnCompare.disabled=true;
-  threshSlider.disabled=false;
+  setThresholdControlDisabled(false);
   updateViabilityPanel(false);
 
   resetPdfControls('A');resetPdfControls('B');
@@ -836,7 +913,7 @@ document.getElementById('btnExportReport').onclick=()=>{
     escalaBloqueada:!!(reportTransform&&reportTransform.locked),
     desplazamientoPt:(reportTransform&&reportTransform.locked)?{dx:Number(reportTransform.dxPt.toFixed(3)),dy:Number(reportTransform.dyPt.toFixed(3))}:null,
     areaComparadaMm:(reportTransform&&reportTransform.locked)?{ancho:Number(ptToMm(reportTransform.areaPt.w).toFixed(2)),alto:Number(ptToMm(reportTransform.areaPt.h).toFixed(2))}:null,
-    umbralDE:parseInt(threshSlider.value),
+    umbralDE:getThresholdDE(),
     pixelesDiferentes:diffCount,
     porcentajeDiferente:Number(pctDiff.toFixed(2)),
     deMax:Number(deMax.toFixed(2)),
