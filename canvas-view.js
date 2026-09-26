@@ -124,7 +124,7 @@ canvasWrap.onmousemove=e=>{
   zctx.strokeRect(54,54,12,12);
 
   document.getElementById('zoomInfo').innerHTML=
-    `ΔE: <b>${de.toFixed(2)}</b><br>`+
+    `ΔE: <b>${formatDE(de,2)}</b><br>`+
     `A: rgb(${dA[o]},${dA[o+1]},${dA[o+2]})<br>`+
     `B: rgb(${dB[o]},${dB[o+1]},${dB[o+2]})<br>`+
     `px: ${px},${py}`;

@@ -155,10 +155,24 @@ canvas{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .zoom-box canvas{display:block;border-radius:var(--radius-xs)}
 .zoom-info{font-family:var(--font-mono);font-size:var(--micro-size);color:var(--ink-dim);padding:4px 4px 0;line-height:1.6}
 .zoom-info b{color:var(--ink)}
-.thresh-row{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-3) auto;width:50%;min-width:260px}
-.thresh-row label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);white-space:nowrap;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
-.thresh-row input[type=range]{flex:1;accent-color:var(--accent)}
-.thresh-row span{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;color:var(--ink);min-width:28px;text-align:right}
+/* ---- Umbral ΔE: etiqueta + campo, deslizador con 11 marcas, Baja/Alta ----
+   El pulgar tiene un ancho fijo (--thumb) en todos los navegadores para que
+   las marcas, con medio pulgar de relleno a cada lado, caigan justo donde
+   queda su centro en los extremos del recorrido. */
+.thresh-block{--thumb:16px;margin:var(--space-3) auto;width:50%;min-width:260px}
+.thresh-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-1)}
+.thresh-head label{font-size:var(--micro-cap-size);font-weight:var(--weight-bold);color:var(--ink-dim);white-space:nowrap;text-transform:uppercase;letter-spacing:var(--micro-cap-track)}
+#threshInput{width:56px;border:0.5px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px 6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;color:var(--ink);background:var(--surface);text-align:right}
+#threshInput:disabled{opacity:.4}
+#thresh{-webkit-appearance:none;appearance:none;display:block;width:100%;height:var(--thumb);margin:0;background:transparent;cursor:pointer}
+#thresh::-webkit-slider-runnable-track{height:4px;background:var(--border-strong);border-radius:var(--radius-pill)}
+#thresh::-moz-range-track{height:4px;background:var(--border-strong);border-radius:var(--radius-pill)}
+#thresh::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;width:var(--thumb);height:var(--thumb);margin-top:calc((4px - var(--thumb)) / 2);border-radius:50%;border:2px solid var(--canvas);background:var(--primary);box-shadow:var(--elevation-1)}
+#thresh::-moz-range-thumb{box-sizing:border-box;width:var(--thumb);height:var(--thumb);border-radius:50%;border:2px solid var(--canvas);background:var(--primary);box-shadow:var(--elevation-1)}
+#thresh:disabled{opacity:.4;cursor:default}
+.thresh-ticks{display:flex;justify-content:space-between;padding:0 calc(var(--thumb) / 2 - 0.5px);margin-top:2px}
+.thresh-ticks span{width:1px;height:6px;background:var(--border-strong)}
+.thresh-ends{display:flex;justify-content:space-between;font-size:var(--caption-size);color:var(--ink-faint);line-height:1.4;margin-top:2px}
 .hint{font-size:var(--caption-size);color:var(--ink-faint);margin-top:var(--space-2)}
 #threshSuggestNote{display:none;color:var(--primary-deep);font-weight:600;margin-top:calc(var(--space-2) * -1)}
 .btn-row{display:flex;gap:var(--space-2);margin-top:var(--space-4);flex-wrap:wrap}
@@ -635,10 +649,14 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="align-transform-warn" id="alignTransformWarn"></div>
 </div>
 
-<div class="thresh-row">
-  <label>Umbral ΔE:</label>
-  <input type="range" id="thresh" min="1" max="30" value="1" step="1">
-  <span id="threshVal">1</span>
+<div class="thresh-block" title="Diferencia de color mínima para marcar un píxel. Baja = más estricto, detecta más; Alta = más tolerante.">
+  <div class="thresh-head">
+    <label for="threshInput">Umbral ΔE:</label>
+    <input type="text" id="threshInput" inputmode="decimal" autocomplete="off" spellcheck="false" value="1,0">
+  </div>
+  <input type="range" id="thresh" min="0" max="39" step="1" value="5" autocomplete="off" aria-label="Umbral ΔE, de Baja (más estricto) a Alta (más tolerante)">
+  <div class="thresh-ticks" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="thresh-ends" aria-hidden="true"><span>Baja</span><span>Alta</span></div>
 </div>
 <div class="hint" id="threshSuggestNote"></div>
 
@@ -684,7 +702,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="legend">
       <div class="legend-item"><div class="legend-dot dot-high"></div>ΔE alto (>15)</div>
       <div class="legend-item"><div class="legend-dot dot-mid"></div>ΔE medio (5–15)</div>
-      <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">1</span>–5)</div>
+      <div class="legend-item"><div class="legend-dot dot-low"></div>ΔE bajo (<span id="legendThreshVal">1,0</span>–5)</div>
     </div>
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="mainCanvas"></canvas>
@@ -777,6 +795,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
           <li><strong>Umbral 2-3</strong> — Con JPG, cuya compresión genera diferencias falsas, o cuando hay transformación de alineación activa y el remuestreo produce ruido en los bordes.</li>
           <li><strong>Umbral 5 o más</strong> — Solo si quieres localizar únicamente los cambios grandes e ignorar los matices.</li>
         </ul>
+        <p>El umbral va de 0,5 a 10,0: escríbelo en su campo o muévelo con el deslizador, de <strong>Baja</strong> (más estricto, detecta más) a <strong>Alta</strong> (más tolerante). El cambio se aplica al momento sobre la comparación ya hecha, sin volver a comparar.</p>
         <p>Subir el umbral <strong>oculta diferencias reales</strong>. Ante la duda, es mejor bajarlo y revisar más zonas.</p>
         <p>El umbral ΔE filtra por intensidad del cambio de color. El tamaño mínimo filtra por extensión de la zona. Para no perder cambios pequeños, deja el tamaño mínimo bajo y ajusta el umbral si aparece demasiado ruido.</p>
       </div>
@@ -931,20 +950,22 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 </div>
 
-<script src="./canvas-view.js?v=32"></script>
-<script src="./similarity.js?v=32"></script>
-<script src="./nudge.js?v=32"></script>
-<script src="./physical-align.js?v=32"></script>
-<script src="./viability.js?v=32"></script>
-<script src="./align.js?v=32"></script>
-<script src="./vector-geometry.js?v=32"></script>
-<script src="./vector-picker.js?v=32"></script>
+<script src="./canvas-view.js?v=33"></script>
+<script src="./similarity.js?v=33"></script>
+<script src="./nudge.js?v=33"></script>
+<script src="./physical-align.js?v=33"></script>
+<script src="./viability.js?v=33"></script>
+<script src="./align.js?v=33"></script>
+<script src="./vector-geometry.js?v=33"></script>
+<script src="./vector-picker.js?v=33"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
-<script src="./pdf-facts.js?v=32"></script>
-<script src="./reliability.js?v=32"></script>
-<script src="./pdf-source.js?v=32"></script>
-<script src="./text-analysis.js?v=32"></script>
-<script src="./regions-panel.js?v=32"></script>
-<script src="./app.js?v=32"></script>
+<script src="./pdf-facts.js?v=33"></script>
+<script src="./reliability.js?v=33"></script>
+<script src="./pdf-source.js?v=33"></script>
+<script src="./text-analysis.js?v=33"></script>
+<script src="./diff-areas.js?v=33"></script>
+<script src="./threshold-control.js?v=33"></script>
+<script src="./regions-panel.js?v=33"></script>
+<script src="./app.js?v=33"></script>
 </body>
 </html>
