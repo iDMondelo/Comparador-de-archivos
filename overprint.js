@@ -8,8 +8,8 @@
 // a las planchas que le corresponden. PDF.js ignora /OP y /op, pero sí aplica
 // /BM (lo traduce a globalCompositeOperation del canvas), así que la
 // aproximación es traducir el ExtGState a /BM /Multiply — la misma traducción
-// que hacen ArtPro y otros generadores cuando emiten grupos Darken/Multiply
-// para que los visores muestren la sobreimpresión.
+// que hacen algunos RIP y generadores de preimpresión cuando emiten
+// grupos Darken/Multiply para que los visores muestren la sobreimpresión.
 //
 // La reescritura se aplica SIEMPRE por igual a A y a B: aplicarla a uno solo
 // generaría diferencias falsas en la comparación.

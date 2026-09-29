@@ -12,3 +12,7 @@ vendor/
 
 # capturas y resultados de verificación local
 pruebas/
+
+# guía de trabajo y skills locales (no se publican)
+CLAUDE.md
+.claude/skills/

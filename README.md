@@ -1,6 +1,6 @@
 # Comparador ΔE
 
-Herramienta web para comparar dos versiones de un mismo diseño (por ejemplo, artes finales de envases) y detectar diferencias de color y de texto entre ambas.
+Herramienta web para comparar dos versiones de un mismo diseño (por ejemplo, artes finales) y detectar diferencias de color y de texto entre ambas.
 
 Funciona íntegramente en el navegador: los archivos nunca se suben a ningún servidor, todo el procesamiento (lectura de PDF, OCR, cálculo de color) ocurre localmente en el equipo del usuario.
 

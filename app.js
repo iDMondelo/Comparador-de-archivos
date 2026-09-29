@@ -12,8 +12,11 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'36',date:'2026-09-29',changes:[
+    'Revisión de los textos de la interfaz y de la documentación: la ayuda, el botón «Sobreimprimir» y este historial describen lo que hace la herramienta sin citar programas ni fabricantes concretos.'
+  ]},
   {version:'35',date:'2026-09-29',changes:[
-    'Vuelve la simulación de sobreimpresión, ahora con un botón «Sobreimprimir» bajo «Alinear archivos»: al activarlo, los objetos sobreimpresos (tintas planas, texturas metalizadas) dejan de tapar el arte y se ve el diseño por debajo, como en la vista previa de Illustrator.',
+    'Vuelve la simulación de sobreimpresión, ahora con un botón «Sobreimprimir» bajo «Alinear archivos»: al activarlo, los objetos sobreimpresos (tintas planas, texturas metalizadas) dejan de tapar el arte y se ve el diseño por debajo, como en una vista previa de sobreimpresión.',
     'Los objetos blancos sobreimpresos ya calan correctamente, que era el fallo por el que se retiró en la v31; se aplica siempre por igual a A y a B, y al cambiarla hay que volver a comparar.'
   ]},
   {version:'34',date:'2026-09-26',changes:[
@@ -26,10 +29,6 @@ const VERSION_HISTORY=[
   ]},
   {version:'32',date:'2026-09-25',changes:[
     'Al terminar de comparar, la página baja sola hasta los resultados, sin tener que hacer scroll a mano.'
-  ]},
-  {version:'31',date:'2026-09-25',changes:[
-    'Se retira la opción «Simular sobreimpresión»: los PDF/.ai se muestran y comparan tal como los dibuja el archivo, sin reescribirlo (la simulación hacía desaparecer los objetos blancos sobreimpresos).',
-    'El semáforo de fiabilidad deja de tener en cuenta la sobreimpresión.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
