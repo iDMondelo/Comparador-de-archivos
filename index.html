@@ -384,15 +384,26 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .vp-verify-preview{display:inline-block;border-radius:var(--radius-md);border:0.5px solid var(--border);overflow:hidden;background:var(--surface)}
 .vp-second-element-row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)}
 
-/* ---- opciones bajo «Alinear archivos»: bloqueo de escala 1:1 (align.js),
-   en una línea discreta. La casilla indica si la opción está activa; su
-   visibilidad la gobierna align.js (display:flex / none). ---- */
+/* ---- opciones bajo «Alinear archivos»: bloqueo de escala 1:1 (align.js) y
+   simulación de sobreimpresión (overprint.js), en una línea discreta. La
+   casilla o el botón indican si la opción está activa; su visibilidad la
+   gobiernan align.js y overprint.js (display:flex / inline-flex / none). ---- */
 .align-options-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:var(--space-1) var(--space-4)}
 .align-option{display:none;align-items:center;gap:6px;font-size:var(--micro-size);line-height:1.5;color:var(--ink-faint);text-align:left;cursor:pointer}
 .align-option:hover{color:var(--ink-dim)}
 .align-option input[type=checkbox]{margin:0;accent-color:var(--accent);cursor:pointer}
 .align-option input[type=checkbox]:disabled{cursor:default}
 .align-option input[type=checkbox]:disabled+span{color:var(--ink-mute)}
+/* Botón de alternancia: mismos tokens de estado activo que .tab (fondo
+   «tag/tab activa» de DESIGN.md), para que «activo» se lea igual en toda la
+   herramienta. aria-pressed es la fuente de verdad del estado. */
+.align-option-btn{display:none;align-items:center;gap:var(--space-2)}
+.toggle-pill{padding:4px 14px;border:0.5px solid var(--border);border-radius:var(--radius-pill);font-size:var(--button-sm-size);font-weight:var(--weight-semibold);font-family:var(--font-ui);cursor:pointer;background:var(--surface);color:var(--ink-dim);transition:background .15s,color .15s,border-color .15s}
+.toggle-pill:hover{color:var(--ink)}
+.toggle-pill[aria-pressed=true]{background:var(--primary-bg-subdued-hover);color:var(--primary-deep);border-color:var(--primary-deep)}
+.toggle-pill:disabled{opacity:.4;cursor:default}
+.toggle-pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.align-option-info{font-size:var(--micro-size);line-height:1.5;color:var(--ink-mute)}
 
 /* ---- indicador de método de alineación activo ---- */
 .align-method-badge{font-size:var(--micro-size);font-weight:var(--weight-semibold);color:var(--ink-mute);background:var(--canvas-soft);border-radius:var(--radius-pill);padding:2px 10px;margin-bottom:var(--space-2);display:inline-block}
@@ -663,6 +674,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     <div class="align-guide" id="alignGuideText">Alineación no disponible: este método solo funciona cuando ambos archivos son PDF o .ai.</div>
     <div class="align-options-row">
       <label class="align-option" id="scaleLockRow"><input type="checkbox" id="scaleLockToggle" checked> <span id="scaleLockText"></span></label>
+      <span class="align-option-btn" id="renderOptionsRow" style="display:none"><button type="button" class="toggle-pill" id="overprintToggle" aria-pressed="false" title="Simula la vista previa de sobreimpresión (como en Illustrator)">Sobreimprimir</button> <span class="align-option-info" id="overprintInfo"></span></span>
     </div>
   </div>
   <div class="align-transform-summary" id="alignTransformSummary"></div>
@@ -857,7 +869,7 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
         <ul>
           <li>Compara la apariencia final compuesta, no separaciones ni canales individuales de tinta.</li>
           <li>No compara tintas planas, sobreimpresión ni barnices por separado.</li>
-          <li>La sobreimpresión no se simula: los objetos sobreimpresos se muestran tal como los dibuja el PDF, calando el fondo.</li>
+          <li>La sobreimpresión solo se simula si activas el botón «Sobreimprimir»: traduce los objetos sobreimpresos al modo Multiplicar, una aproximación válida para tintas planas y negro sobreimpreso, que es la práctica totalidad de los casos en artes finales. No sustituye a la previsualización de un RIP, y dentro de un patrón de mosaico no tiene efecto.</li>
           <li>No sustituye a una revisión profesional de preimpresión; es una ayuda para localizar cambios rápido.</li>
         </ul>
       </div>
@@ -983,23 +995,24 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 </div>
 
-<script src="./canvas-view.js?v=34"></script>
-<script src="./similarity.js?v=34"></script>
-<script src="./nudge.js?v=34"></script>
-<script src="./physical-align.js?v=34"></script>
-<script src="./viability.js?v=34"></script>
-<script src="./align.js?v=34"></script>
-<script src="./vector-geometry.js?v=34"></script>
-<script src="./vector-picker.js?v=34"></script>
+<script src="./canvas-view.js?v=35"></script>
+<script src="./similarity.js?v=35"></script>
+<script src="./nudge.js?v=35"></script>
+<script src="./physical-align.js?v=35"></script>
+<script src="./viability.js?v=35"></script>
+<script src="./align.js?v=35"></script>
+<script src="./vector-geometry.js?v=35"></script>
+<script src="./vector-picker.js?v=35"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
-<script src="./pdf-facts.js?v=34"></script>
-<script src="./reliability.js?v=34"></script>
-<script src="./pdf-source.js?v=34"></script>
-<script src="./text-analysis.js?v=34"></script>
-<script src="./diff-areas.js?v=34"></script>
-<script src="./threshold-control.js?v=34"></script>
-<script src="./regions-panel.js?v=34"></script>
-<script src="./marked-panel.js?v=34"></script>
-<script src="./app.js?v=34"></script>
+<script src="./overprint.js?v=35"></script>
+<script src="./pdf-facts.js?v=35"></script>
+<script src="./reliability.js?v=35"></script>
+<script src="./pdf-source.js?v=35"></script>
+<script src="./text-analysis.js?v=35"></script>
+<script src="./diff-areas.js?v=35"></script>
+<script src="./threshold-control.js?v=35"></script>
+<script src="./regions-panel.js?v=35"></script>
+<script src="./marked-panel.js?v=35"></script>
+<script src="./app.js?v=35"></script>
 </body>
 </html>

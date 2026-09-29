@@ -12,6 +12,10 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'35',date:'2026-09-29',changes:[
+    'Vuelve la simulación de sobreimpresión, ahora con un botón «Sobreimprimir» bajo «Alinear archivos»: al activarlo, los objetos sobreimpresos (tintas planas, texturas metalizadas) dejan de tapar el arte y se ve el diseño por debajo, como en la vista previa de Illustrator.',
+    'Los objetos blancos sobreimpresos ya calan correctamente, que era el fallo por el que se retiró en la v31; se aplica siempre por igual a A y a B, y al cambiarla hay que volver a comparar.'
+  ]},
   {version:'34',date:'2026-09-26',changes:[
     'Nueva vista «Marcado», la primera tras comparar: la imagen B se ve lavada en gris claro y cada área con diferencias aparece a color dentro de un recuadro, con los píxeles que superan el umbral resaltados en rosa.',
     'El panel indica cuántas áreas hay y se actualiza al mover el umbral; un clic en un área, en la lista o en la imagen, muestra su ΔE máximo y medio.'
@@ -26,9 +30,6 @@ const VERSION_HISTORY=[
   {version:'31',date:'2026-09-25',changes:[
     'Se retira la opción «Simular sobreimpresión»: los PDF/.ai se muestran y comparan tal como los dibuja el archivo, sin reescribirlo (la simulación hacía desaparecer los objetos blancos sobreimpresos).',
     'El semáforo de fiabilidad deja de tener en cuenta la sobreimpresión.'
-  ]},
-  {version:'30',date:'2026-09-25',changes:[
-    'Las cajas para soltar los archivos A y B son un poco más altas, para que sea más fácil acertar al arrastrar un archivo.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -113,10 +114,10 @@ async function handleFileSelected(file,which){
     if(kind==='svg')throw new Error('El formato SVG no es compatible. Usa PDF, .ai, JPG o PNG.');
     let source;
     if(kind==='pdf'||kind==='ai'){
-      const{pdfDoc,pageCount,pdfFacts}=await openPdf(file);
+      const{pdfDoc,pageCount,pdfFacts,overprint}=await openPdf(file);
       const dpi=ANALYSIS_DPI;
       const rendered=await renderPdfPage(pdfDoc,1,dpi);
-      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,pdfFacts};
+      source={...rendered,sourceType:kind,file,pdfDoc,pageNum:1,pageCount,textMode:null,textModeForced:false,pdfFacts,overprint};
     }else{
       const rendered=await loadRaster(file);
       source={...rendered,file};
@@ -142,6 +143,9 @@ async function handleFileSelected(file,which){
       resetPdfControls(which);
       renderTextIndicator(which);
     }
+    // Si el otro archivo ya está abierto con un ajuste de sobreimpresión
+    // distinto, se reabre: la simulación se aplica SIEMPRE por igual a A y a B.
+    if(typeof syncOverprintMode==='function')await syncOverprintMode();
     // Baja la vista al final de la carga, ya con los lienzos dibujados; si se
     // hiciera antes, un redibujado tardío la dejaría descuadrada.
     if(typeof consumeAlignJustRevealed==='function'&&consumeAlignJustRevealed()){
@@ -879,6 +883,7 @@ function resetAll(){
   updateViabilityPanel(false);
 
   resetPdfControls('A');resetPdfControls('B');
+  if(typeof resetOverprintUI==='function')resetOverprintUI();
   renderTextIndicator('A');renderTextIndicator('B');
   if(typeof clearTextDiff==='function')clearTextDiff();
   if(typeof clearRegions==='function')clearRegions();
@@ -918,6 +923,7 @@ document.getElementById('btnExportReport').onclick=()=>{
     imagenB:{nombre:nameB.textContent,ancho:sourceB.naturalWidth,alto:sourceB.naturalHeight,tipo:sourceB.sourceType,ppp:sourceB.dpi||null,textoModo:sourceB.textMode||null},
     areaComparada:{ancho:cW,alto:cH,porcentaje:Number((comparedAreaPixels/(cW*cH)*100).toFixed(1))},
     metodoAlineacion:typeof activeAlignMethod!=='undefined'?activeAlignMethod:null,
+    sobreimpresionSimulada:(typeof isOverprintSimActive==='function')?isOverprintSimActive():false,
     puntosReferencia:(reportRefA&&reportRefB)?{
       A:reportTransform?{p1:reportRefA,p2:refA2}:reportRefA,
       B:reportTransform?{p1:reportRefB,p2:refB2}:reportRefB,

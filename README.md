@@ -16,6 +16,7 @@ Funciona íntegramente en el navegador: los archivos nunca se suben a ningún se
 - **Vistas de resultado**: overlay de diferencias y mapa de calor ΔE.
 - **Análisis de texto** con OCR (vía [Tesseract.js](https://github.com/naptha/tesseract.js), idiomas español e inglés incluidos) para detectar cambios de texto entre ambas versiones.
 - **Selección de regiones** para acotar el análisis a una zona concreta del diseño.
+- **Simulación de sobreimpresión** en PDF/.ai, tras el botón «Sobreimprimir» (desactivado por defecto): el archivo se reescribe en memoria (nunca en disco) traduciendo los objetos sobreimpresos al modo Multiplicar, de modo que las tintas planas y las texturas metalizadas dejan de tapar el arte y se ve el diseño por debajo. Se aplica siempre por igual a ambos archivos. Los objetos blancos sobreimpresos siguen calando, como debe ser.
 - **Exportación** de la vista actual y de un informe de la comparación.
 
 ## Uso
@@ -32,7 +33,8 @@ No requiere instalación, dependencias de Node ni build: es HTML/CSS/JS estátic
 | `app.js` | Orquestación general: ciclo de vida de archivos, pestañas, comparación, exportación |
 | `de-worker.js` | Web Worker que calcula la diferencia de color ΔE2000 |
 | `pdf-source.js` | Carga y rasterizado de PDF/.ai (vía pdf.js) |
-| `pdf-facts.js` | Lectura del PDF (vía pdf-lib, solo lectura) para el semáforo de fiabilidad: cifrado, perfil de salida, anotaciones y fuentes. El PDF nunca se reescribe |
+| `pdf-facts.js` | Lectura del PDF (vía pdf-lib, solo lectura) para el semáforo de fiabilidad: cifrado, perfil de salida, anotaciones y fuentes. Este módulo nunca reescribe el PDF |
+| `overprint.js` | Simulación de sobreimpresión: escaneo de los content streams para saber qué pinta cada ExtGState y reescritura del PDF en memoria (vía pdf-lib) traduciendo /OP y /op a Multiplicar; botón e indicador |
 | `align.js` | Alineación manual de las dos imágenes por puntos de referencia |
 | `vector-picker.js` | Alineación por elementos vectoriales: selección, matching automático y vista previa de la transformación |
 | `vector-geometry.js` | Extracción de geometría vectorial desde SVG/PDF/.ai y detección de coincidencias por forma |
