@@ -1,6 +1,8 @@
 // ============================================================================
-// vector-picker.js — modal de selección de elemento vectorial (tercer método
-// de alineación). Capa de entrada/presentación: al confirmar, escribe en el
+// vector-picker.js — modal de selección manual de elemento vectorial. Desde
+// que «Alinear archivos» busca las anclas solo (auto-anchor.js + runAutoAlign
+// en align.js), este modal es la alternativa para cuando esa búsqueda no
+// consigue verificar nada. Capa de entrada/presentación: al confirmar, escribe en el
 // MISMO estado (pointsA/pointsB, vía setPointsFromVector en align.js) que ya
 // escriben los clics manuales — no introduce un almacén paralelo ni toca
 // compare()/similarity.js/de-worker.js.
@@ -584,10 +586,13 @@ function vpSetupInteraction(which){
 vpSetupInteraction('A');
 vpSetupInteraction('B');
 
-// ---- botón de entrada, condicionado a disponibilidad real ------------------
+// ---- botones de entrada, condicionados a disponibilidad real ---------------
+// La puerta principal es «Alinear archivos» (#btnAutoAlign, cableado en
+// align.js): busca las anclas sola. Este modal queda como alternativa manual
+// y su botón solo lo muestra runAutoAlign() cuando la búsqueda no verifica.
 
 function updateVectorPickerEntryVisibility(){
-  const btn=vpEl('btnOpenVectorPicker');
+  const btn=vpEl('btnAutoAlign');
   if(!btn)return;
   const available=isVectorGeometryAvailable(typeof sourceA!=='undefined'?sourceA:null)&&isVectorGeometryAvailable(typeof sourceB!=='undefined'?sourceB:null);
   btn.style.display=available?'inline-flex':'none';
@@ -595,7 +600,9 @@ function updateVectorPickerEntryVisibility(){
   // manual), así que «Restablecer alineación» se muestra y oculta con él.
   const reset=vpEl('btnResetRef');
   if(reset)reset.style.display=available?'inline-flex':'none';
+  const manual=vpEl('btnManualPicker');
+  if(manual&&!available)manual.style.display='none';
   const guide=vpEl('alignGuideText');
   if(guide)guide.style.display=available?'none':'block';
 }
-vpEl('btnOpenVectorPicker').onclick=function(){openVectorPicker(this);};
+vpEl('btnManualPicker').onclick=function(){openVectorPicker(this);};

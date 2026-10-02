@@ -12,23 +12,24 @@
 // Al publicar, cambia también el `?v=` de los <script> propios de index.html
 // al mismo número: así el navegador no mezcla JS cacheados de dos versiones.
 const VERSION_HISTORY=[
+  {version:'39',date:'2026-10-02',changes:[
+    'La ayuda del final de la página se reescribe: tres pasos para empezar y cuatro temas de consulta, con explicaciones mucho más cortas.',
+    'La explicación del umbral ΔE deja claro para qué sirve: limpiar los falsos positivos que deja la rasterización de los vectores, la compresión JPG o el remuestreo de la alineación, subiéndolo poco a poco hasta que solo queden los cambios reales.'
+  ]},
+  {version:'38',date:'2026-10-02',changes:[
+    'La lista de áreas con diferencias se sustituye por una regleta de botones, uno por área, con su ΔE máximo y una barra proporcional: la diferencia más grave se reconoce de un vistazo y se amplía con un solo clic.',
+    'El informe descargable incluye ahora el tamaño, el ΔE máximo y medio y el número de píxeles distintos de cada área.'
+  ]},
+  {version:'37',date:'2026-10-02',changes:[
+    '«Alinear archivos» ya no abre una ventana para elegir un elemento a mano: ahora la herramienta busca sola los objetos que son idénticos y únicos en los dos archivos, se queda con tres repartidos por la página y comprueba que los tres impliquen el mismo desplazamiento antes de dar la alineación por buena.',
+    'Si no encuentra coincidencias suficientes lo explica y ofrece el modo manual de siempre.'
+  ]},
   {version:'36',date:'2026-09-29',changes:[
     'Revisión de los textos de la interfaz y de la documentación: la ayuda, el botón «Sobreimprimir» y este historial describen lo que hace la herramienta sin citar programas ni fabricantes concretos.'
   ]},
   {version:'35',date:'2026-09-29',changes:[
     'Vuelve la simulación de sobreimpresión, ahora con un botón «Sobreimprimir» bajo «Alinear archivos»: al activarlo, los objetos sobreimpresos (tintas planas, texturas metalizadas) dejan de tapar el arte y se ve el diseño por debajo, como en una vista previa de sobreimpresión.',
     'Los objetos blancos sobreimpresos ya calan correctamente, que era el fallo por el que se retiró en la v31; se aplica siempre por igual a A y a B, y al cambiarla hay que volver a comparar.'
-  ]},
-  {version:'34',date:'2026-09-26',changes:[
-    'Nueva vista «Marcado», la primera tras comparar: la imagen B se ve lavada en gris claro y cada área con diferencias aparece a color dentro de un recuadro, con los píxeles que superan el umbral resaltados en rosa.',
-    'El panel indica cuántas áreas hay y se actualiza al mover el umbral; un clic en un área, en la lista o en la imagen, muestra su ΔE máximo y medio.'
-  ]},
-  {version:'33',date:'2026-09-26',changes:[
-    'El umbral ΔE va ahora de 0,5 a 10,0 con coma decimal: se escribe en su campo o se ajusta con un deslizador graduado de Baja (más estricto) a Alta (más tolerante), con más recorrido en la zona útil 0,5–3.',
-    'Al moverlo se re-umbraliza el mapa ΔE ya calculado sin volver a comparar, así que la vista se actualiza al momento; las zonas se recalculan al soltarlo.'
-  ]},
-  {version:'32',date:'2026-09-25',changes:[
-    'Al terminar de comparar, la página baja sola hasta los resultados, sin tener que hacer scroll a mano.'
   ]}
 ];
 const APP_VERSION=VERSION_HISTORY[0].version;
@@ -939,7 +940,8 @@ document.getElementById('btnExportReport').onclick=()=>{
     pixelesDiferentes:diffCount,
     porcentajeDiferente:Number(pctDiff.toFixed(2)),
     deMax:Number(deMax.toFixed(2)),
-    zonasDetectadas:(typeof currentRegions!=='undefined')?currentRegions.length:0
+    zonasDetectadas:(typeof currentRegions!=='undefined')?currentRegions.length:0,
+    areasMarcado:(typeof getMarkedAreasForReport==='function')?getMarkedAreasForReport():[]
   };
   const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);

@@ -214,8 +214,12 @@ function aaUniqueByDescriptor(elements,s,pageWPt,pageHPt){
 async function findAutoAnchors(sourceA,sourceB,opts){
   const{onProgress,signal}=opts||{};
   const t0=performance.now();
-  const indexA=await buildVectorIndex(sourceA,{onProgress,signal,label:'A (auto)'});
-  const indexB=await buildVectorIndex(sourceB,{onProgress,signal,label:'B (auto)'});
+  // El progreso se reenvía marcado con el archivo al que corresponde: cada
+  // índice cuenta su propio 0→100 %, y sin la marca la interfaz no podría
+  // distinguir el segundo recorrido de un reinicio del primero.
+  const prog=which=>onProgress?(p=>onProgress({done:p.done,total:p.total,which})):undefined;
+  const indexA=await buildVectorIndex(sourceA,{onProgress:prog('A'),signal,label:'A (auto)'});
+  const indexB=await buildVectorIndex(sourceB,{onProgress:prog('B'),signal,label:'B (auto)'});
   const tExtract=performance.now();
 
   const sA=pxPerPt(sourceA),sB=pxPerPt(sourceB);

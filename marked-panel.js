@@ -2,9 +2,9 @@
 // marked-panel.js — CAPA DE PRESENTACIÓN de la vista «Marcado»: decide qué
 // áreas con diferencias hay (diff-areas.js sobre el mapa ΔE que ya devolvió
 // de-worker.js, con el umbral de threshold-control.js), mantiene su estado y
-// gestiona el panel (mensaje, casilla, lista), el tooltip con ΔE máx./medio
-// y la navegación. El dibujo vive en canvas-view.js. No recalcula ΔE ni
-// habla con el worker.
+// gestiona el panel (mensaje, casilla, regleta de botones por área y línea
+// de detalle), el tooltip con ΔE máx./medio y la navegación. El dibujo vive
+// en canvas-view.js. No recalcula ΔE ni habla con el worker.
 // ============================================================================
 
 const markedPanelEl=document.getElementById('markedPanel');
@@ -12,10 +12,12 @@ const markedSummaryEl=document.getElementById('markedSummary');
 const markedListEl=document.getElementById('markedList');
 const markedHighlightEl=document.getElementById('markedHighlight');
 const markedTipEl=document.getElementById('markedTip');
+const markedOverflowEl=document.getElementById('markedOverflow');
+const markedDetailEl=document.getElementById('markedDetail');
 
-// Filas como máximo en la lista (un umbral muy bajo sobre un raster con
-// ruido puede dar miles de áreas; la lista no debe volverse inmanejable).
-const MARKED_LIST_MAX=500;
+// Botones como máximo en la regleta (un umbral muy bajo sobre un raster con
+// ruido puede dar miles de áreas; la regleta no debe volverse inmanejable).
+const MARKED_LIST_MAX=100;
 
 let markedAreas=[];
 let markedSelectedId=null;
@@ -83,39 +85,79 @@ function clearMarked(){
   releaseMarkedPatches();
   releaseWashedCache();
   markedSummaryEl.textContent='';
+  markedSummaryEl.classList.remove('plain');
   markedListEl.innerHTML='';
+  markedOverflowEl.hidden=true;markedOverflowEl.textContent='';
+  markedDetailEl.hidden=true;markedDetailEl.textContent='';
   drawMarkedOverlay();
 }
 
-function markedSummaryText(n){
-  if(n===0)return'No se han hallado diferencias con este umbral';
-  if(n===1)return'Hallada 1 área con diferencias';
-  return`Halladas ${n.toLocaleString('es')} áreas con diferencias`;
+// Sin diferencias el resumen es una sola línea en --ink (clase `plain`); con
+// ellas, el recuento en --ink/600 y la tolerancia en --ink-mute/400.
+function markedSummaryHTML(n){
+  const t=`ΔE ${formatDE(getThresholdDE())}`;
+  if(n===0)return`No hay diferencias por encima de ${t}.`;
+  const cuenta=n===1?'1 área con diferencias':`${n.toLocaleString('es')} áreas con diferencias`;
+  return`<b>${cuenta}</b> // tolerancia ${t}`;
 }
 
+// Un botón por área, con el ΔE máx. y una barra proporcional al ΔE máx. de
+// toda la comparación: la diferencia mayor se reconoce sin leer cifras. Se
+// construye una sola vez por recálculo — la selección solo repinta estados en
+// updateMarkedActive(), para no destruir el foco del botón pulsado.
 function renderMarkedPanel(){
   const n=markedAreas.length;
-  markedSummaryEl.textContent=markedSummaryText(n);
-  const rows=markedAreas.slice(0,MARKED_LIST_MAX).map(a=>
-    `<div class="region-row${a.id===markedSelectedId?' active':''}" data-id="${a.id}">`+
-    `<span class="region-badge area-badge">${a.id}</span>`+
-    `<span>${a.w}×${a.h}px</span>`+
-    `<span>ΔE máx ${formatDE(a.deltaEMax)}</span>`+
-    `<span class="region-coords">${a.nPixeles.toLocaleString('es')} px</span>`+
-    `</div>`
-  );
-  if(n>MARKED_LIST_MAX)rows.push(`<div class="hint">… y ${(n-MARKED_LIST_MAX).toLocaleString('es')} áreas más. Sube el umbral para centrarte en las diferencias mayores.</div>`);
-  markedListEl.innerHTML=rows.join('');
-  markedListEl.querySelectorAll('.region-row').forEach(row=>{
-    row.onclick=()=>selectMarkedArea(parseInt(row.dataset.id,10),true);
+  markedSummaryEl.innerHTML=markedSummaryHTML(n);
+  markedSummaryEl.classList.toggle('plain',n===0);
+  const shown=markedAreas.slice(0,MARKED_LIST_MAX);
+  let deMaxAll=0;
+  for(const a of markedAreas)if(a.deltaEMax>deMaxAll)deMaxAll=a.deltaEMax;
+  markedListEl.innerHTML=shown.map(a=>{
+    const pct=deMaxAll>0?a.deltaEMax/deMaxAll*100:0;
+    return`<div class="marked-item">`+
+    `<button type="button" class="marked-pill" data-id="${a.id}" aria-pressed="false" `+
+    `aria-label="Área ${a.id}, ΔE máximo ${formatDE(a.deltaEMax)}, ${a.w} por ${a.h} píxeles, ${a.nPixeles.toLocaleString('es')} píxeles distintos">`+
+    `${a.id}<span class="de">ΔE ${formatDE(a.deltaEMax)}</span></button>`+
+    `<div class="marked-bar"><i style="width:max(4px,${pct.toFixed(1)}%)"></i></div>`+
+    `</div>`;
+  }).join('');
+  markedListEl.querySelectorAll('.marked-pill').forEach(btn=>{
+    btn.onclick=()=>selectMarkedArea(parseInt(btn.dataset.id,10),true);
   });
+  if(n>MARKED_LIST_MAX){
+    markedOverflowEl.textContent=`… y ${(n-MARKED_LIST_MAX).toLocaleString('es')} áreas más. Sube el umbral para centrarte en las diferencias mayores.`;
+    markedOverflowEl.hidden=false;
+  }else{
+    markedOverflowEl.textContent='';markedOverflowEl.hidden=true;
+  }
+  updateMarkedActive(false);
+}
+
+// Estado del botón activo y línea de detalle. `moveFocus` solo cuando el foco
+// ya estaba en la regleta: así ← → y N/P arrastran el anillo de foco consigo,
+// pero un clic en el lienzo no lo roba.
+function updateMarkedActive(moveFocus){
+  let activeBtn=null;
+  markedListEl.querySelectorAll('.marked-pill').forEach(btn=>{
+    const on=parseInt(btn.dataset.id,10)===markedSelectedId;
+    btn.setAttribute('aria-pressed',on?'true':'false');
+    if(on)activeBtn=btn;
+  });
+  const a=markedSelectedId===null?null:markedAreas.find(x=>x.id===markedSelectedId);
+  if(a){
+    markedDetailEl.textContent=`Área ${a.id} // ${a.w} × ${a.h} px // ${a.nPixeles.toLocaleString('es')} px distintos`;
+    markedDetailEl.hidden=false;
+  }else{
+    markedDetailEl.textContent='';markedDetailEl.hidden=true;
+  }
+  if(moveFocus&&activeBtn)activeBtn.focus();
 }
 
 function selectMarkedArea(id,center){
   const a=markedAreas.find(x=>x.id===id);
   if(!a)return;
   markedSelectedId=id;markedTipId=id;
-  renderMarkedPanel();
+  updateMarkedActive(markedListEl.contains(document.activeElement));
   if(center)centerOnMarkedArea(a); // redibuja vía applyCanvasTransform
   else drawMarkedOverlay();
 }
@@ -196,6 +238,17 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key==='n'||e.key==='N'){e.preventDefault();stepMarkedArea(1);}
   else if(e.key==='ArrowLeft'||e.key==='p'||e.key==='P'){e.preventDefault();stepMarkedArea(-1);}
 });
+
+// ---- datos para el informe --------------------------------------------------
+
+// app.js (btnExportReport) no lee ni el DOM de la regleta ni markedAreas: pide
+// aquí las áreas ya formateadas. Vacío si no corresponden al umbral actual.
+function getMarkedAreasForReport(){
+  if(markedStale)return[];
+  return markedAreas.map(a=>({id:a.id,ancho:a.w,alto:a.h,
+    deMax:Number(a.deltaEMax.toFixed(2)),deMedio:Number(a.deltaEMedio.toFixed(2)),
+    pixelesDiferentes:a.nPixeles}));
+}
 
 // El margen de fusión depende del encaje, y el encaje del tamaño del visor.
 let markedResizeTimer=null;

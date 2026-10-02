@@ -230,11 +230,14 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 .align-entry-row{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);text-align:center;margin:var(--space-2) 0 var(--space-4)}
 .align-entry-row .align-guide{margin:0}
 /* Rejilla 1fr·auto·1fr: «Alinear archivos» queda exactamente centrado sobre
-   la línea de opciones y «Restablecer alineación» (discreto, mismo estilo que
-   Reiniciar) se apoya a su derecha sin desplazarlo. */
+   la línea de opciones, «Restablecer alineación» (discreto, mismo estilo que
+   Reiniciar) se apoya a su derecha y «Elegir elemento a mano» —solo visible
+   cuando la búsqueda automática no verifica— a su izquierda, sin desplazarlo. */
 .align-entry-buttons{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-2);width:100%}
-#btnOpenVectorPicker{grid-column:2}
+#btnAutoAlign{grid-column:2}
+#btnManualPicker{grid-column:1;justify-self:end;white-space:nowrap}
 #btnResetRef{grid-column:3;justify-self:start;white-space:nowrap}
+#autoAlignStatus{width:min(100%,640px);margin:0 auto;text-align:center}
 @media (max-width:640px){.align-entry-buttons{display:flex;flex-wrap:wrap;justify-content:center}}
 .align-canvas-wrap{position:relative;overflow:hidden;height:min(52vh,480px);border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--viewer-bg);display:flex;align-items:center;justify-content:center}
 .align-canvas{display:block;cursor:none}
@@ -313,28 +316,65 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 #resultsArea[data-view="marcado"] #markedCanvas,#resultsArea[data-view="marcado"] #markedPanel{display:block}
 #resultsArea[data-view="marcado"] .legend,#resultsArea[data-view="marcado"] #regionsPanel{display:none!important}
 #markedPanel{margin-top:var(--space-4);border:0.5px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--elevation-1);padding:var(--space-3) var(--space-4)}
-#markedSummary{margin:0 0 var(--space-3)}
-.area-badge{background:var(--canvas-tint);color:var(--ink)}
+/* Resumen, regleta de áreas y línea de detalle. Clases propias: las de
+   .region-row/.regions-list las comparten el panel de zonas y el selector de
+   elementos vectoriales, así que la regleta no las toca. La pista de la barra
+   hereda el ancho del botón (columna flex); solo el relleno lleva ancho
+   en línea, con un mínimo de 4 px para que nunca desaparezca. */
+.marked-summary{margin:0 0 var(--space-3);font-size:var(--body-md-size);line-height:1.4;color:var(--ink-mute)}
+.marked-summary b{font-weight:var(--weight-semibold);color:var(--ink)}
+.marked-summary.plain{color:var(--ink)}
+.marked-help{font-size:var(--caption-size);color:var(--ink-mute)}
+.marked-strip{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:flex-start;justify-content:flex-start}
+.marked-item{display:flex;flex-direction:column}
+.marked-pill{height:40px;padding:0 var(--space-4);border-radius:var(--radius-pill);border:1px solid var(--primary);background:var(--canvas);color:var(--primary);font-family:var(--font-sans);font-size:var(--body-md-size);font-weight:var(--weight-semibold);line-height:1;display:inline-flex;align-items:center;gap:var(--space-2);white-space:nowrap;cursor:pointer;font-variant-numeric:tabular-nums;transition:background-color 120ms linear,border-color 120ms linear,color 120ms linear}
+.marked-pill .de{font-size:var(--caption-size);font-weight:400}
+.marked-pill:hover{background:var(--primary-bg-subdued-hover);color:var(--primary-deep)}
+.marked-pill:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.marked-pill:active{background:var(--primary-press);border-color:var(--primary-press);color:var(--on-primary)}
+.marked-pill[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.marked-pill[aria-pressed="true"] .de{color:var(--canvas-tint)}
+.marked-pill[aria-pressed="true"]:hover{background:var(--primary-deep);border-color:var(--primary-deep)}
+.marked-pill[aria-pressed="true"]:active{background:var(--primary-press);border-color:var(--primary-press)}
+.marked-bar{height:3px;margin-top:6px;background:var(--hairline)}
+.marked-bar i{display:block;height:100%;background:var(--accent-gold)}
+.marked-overflow{margin-top:var(--space-3)}
+.marked-overflow[hidden]{display:none}
+.marked-detail{margin-top:var(--space-3);font-size:var(--caption-size);color:var(--ink-mute);font-variant-numeric:tabular-nums}
+.marked-detail[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.marked-pill{transition:none}}
+@media (max-width:480px){.marked-pill{height:36px}.marked-help{display:none}}
 .marked-tip{position:absolute;z-index:5;pointer-events:none;white-space:nowrap;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--elevation-2);padding:var(--space-1) var(--space-2);font-size:var(--caption-size);color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .marked-tip b{color:var(--ink)}
 .marked-tip[hidden]{display:none}
 
 /* ---- ayuda plegable ---- */
+/* Los pasos son una secuencia, así que van numerados y cada uno se apoya en un
+   tramo de la regla dorada de marca (oro como regla, nunca como texto); los
+   tres tramos juntos leen como el hilo del procedimiento. Los temas de consulta
+   van debajo sin tarjeta, solo con filetes, para que el único elemento con peso
+   de la sección sea esa regla. */
 .help-section{margin:var(--space-6) 0 var(--space-4);scroll-margin-top:88px}
-.help-item{scroll-margin-top:88px}
-.help-list{display:flex;flex-direction:column;gap:var(--space-2)}
-.help-item{border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--surface);overflow:hidden}
-.help-item summary{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);cursor:pointer;font-size:var(--body-md-size);font-weight:var(--weight-semibold);color:var(--ink);list-style:none}
+.help-rule{width:32px;height:3px;background:var(--accent-gold);border-radius:2px;margin:0 0 var(--space-3)}
+.help-title{font-size:var(--heading-lg-size);font-weight:var(--weight-semibold);letter-spacing:-0.01em;line-height:1.2;color:var(--ink);margin:0 0 var(--space-5)}
+.help-steps{display:grid;gap:var(--space-4);margin:0 0 var(--space-3);padding:0;list-style:none}
+.help-step{border-top:3px solid var(--accent-gold);padding-top:var(--space-3)}
+.help-step-n{font-size:var(--caption-size);font-weight:var(--weight-bold);color:var(--ink-mute);font-variant-numeric:tabular-nums;line-height:1}
+.help-step-t{font-size:var(--body-md-size);font-weight:var(--weight-semibold);color:var(--ink);margin:var(--space-2) 0 var(--space-1)}
+.help-step-d{font-size:var(--body-md-size);line-height:1.5;color:var(--ink-secondary)}
+.help-note{font-size:var(--caption-size);color:var(--ink-mute);margin:0 0 var(--space-5)}
+@media (min-width:768px){.help-steps{grid-template-columns:repeat(3,1fr)}}
+.help-list{border-top:0.5px solid var(--hairline)}
+.help-item{scroll-margin-top:88px;border-bottom:0.5px solid var(--hairline)}
+.help-item summary{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) 0;cursor:pointer;font-size:var(--body-md-size);font-weight:var(--weight-semibold);color:var(--ink);list-style:none}
 .help-item summary::-webkit-details-marker{display:none}
-.help-item summary:hover{background:var(--surface-raised)}
-.help-item summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.help-item summary:hover{color:var(--primary)}
+.help-item summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .help-item .chevron{flex-shrink:0;color:var(--ink-faint);transition:transform .15s}
 .help-item[open] .chevron{transform:rotate(180deg)}
-.help-body{padding:0 var(--space-4) var(--space-4);color:var(--ink-dim);font-size:var(--body-md-size);line-height:1.6}
-.help-body p{margin-bottom:var(--space-2)}
+.help-body{padding:0 0 var(--space-4);color:var(--ink-secondary);font-size:var(--body-md-size);line-height:1.6;max-width:54ch}
+.help-body p{margin:0 0 var(--space-2)}
 .help-body p:last-child{margin-bottom:0}
-.help-body ul,.help-body ol{padding-left:1.2em;margin:var(--space-2) 0}
-.help-body li{margin-bottom:4px}
 .help-body strong{color:var(--ink)}
 
 /* ---- modal genérico (historial de versiones) ---- */
@@ -668,10 +708,12 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 
   <div class="align-entry-row">
     <div class="align-entry-buttons">
-      <button class="action primary" id="btnOpenVectorPicker" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Alinear archivos</button>
+      <button class="action" id="btnManualPicker" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg> Elegir elemento a mano</button>
+      <button class="action primary" id="btnAutoAlign" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg> Alinear archivos</button>
       <button class="action" id="btnResetRef" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 16v-4h4"/></svg> Restablecer alineación</button>
     </div>
     <div class="align-guide" id="alignGuideText">Alineación no disponible: este método solo funciona cuando ambos archivos son PDF o .ai.</div>
+    <div class="align-format-notice" id="autoAlignStatus" style="display:none"></div>
     <div class="align-options-row">
       <label class="align-option" id="scaleLockRow"><input type="checkbox" id="scaleLockToggle" checked> <span id="scaleLockText"></span></label>
       <span class="align-option-btn" id="renderOptionsRow" style="display:none"><button type="button" class="toggle-pill" id="overprintToggle" aria-pressed="false" title="Simula la vista previa de sobreimpresión">Sobreimprimir</button> <span class="align-option-info" id="overprintInfo"></span></span>
@@ -765,12 +807,14 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
     </div>
 
     <div id="markedPanel">
-      <div class="align-format-notice positive" id="markedSummary" role="status"></div>
+      <div class="marked-summary" id="markedSummary" role="status"></div>
       <div class="regions-toolbar">
         <label><input type="checkbox" id="markedHighlight" checked> Resaltar píxeles diferentes</label>
-        <span class="hint" style="margin:0">Clic en un área para ver su ΔE · Navega con ← → o N/P</span>
+        <span class="marked-help">Clic en un área para ampliarla // ← → o N/P para navegar</span>
       </div>
-      <div class="regions-list" id="markedList"></div>
+      <div class="marked-strip" id="markedList" role="group" aria-label="Áreas con diferencias"></div>
+      <div class="marked-overflow hint" id="markedOverflow" hidden></div>
+      <div class="marked-detail" id="markedDetail" hidden></div>
     </div>
 
     <div class="btn-row">
@@ -807,78 +851,60 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
   <div class="zoom-info" id="alignZoomInfo"></div>
 </div>
 
-<section class="help-section" id="ayuda" aria-label="Ayuda">
-  <div class="field-label">Ayuda</div>
+<section class="help-section" id="ayuda" aria-labelledby="help-title">
+  <div class="help-rule" aria-hidden="true"></div>
+  <h2 class="help-title" id="help-title">Cómo se usa</h2>
+
+  <ol class="help-steps">
+    <li class="help-step">
+      <div class="help-step-n">1</div>
+      <div class="help-step-t">Carga las dos versiones</div>
+      <div class="help-step-d">El original en A y la revisión en B.</div>
+    </li>
+    <li class="help-step">
+      <div class="help-step-n">2</div>
+      <div class="help-step-t">Alinea y compara</div>
+      <div class="help-step-d">Pulsa «Alinear archivos» y después «Comparar». Los puntos de alineación los busca la herramienta.</div>
+    </li>
+    <li class="help-step">
+      <div class="help-step-n">3</div>
+      <div class="help-step-t">Revisa cada diferencia</div>
+      <div class="help-step-d">Cada área tiene su botón bajo el visor: púlsalo para ampliarla, o pasa de una a otra con ← →.</div>
+    </li>
+  </ol>
+  <p class="help-note">Necesita pantalla grande y ratón o trackpad.</p>
+
   <div class="help-list">
-    <details class="help-item">
-      <summary>¿Qué hace esta herramienta?<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+    <details class="help-item" id="help-umbral">
+      <summary>Umbral ΔE<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
-        <p>Compara dos versiones de un mismo archivo — por ejemplo, el diseño aprobado y una revisión del cliente — y señala automáticamente todo lo que ha cambiado entre ambas, píxel a píxel. Está pensada para revisar cambios entre revisiones de cliente sin tener que repasarlas a ojo.</p>
+        <p>El ΔE mide cuánto se diferencian dos colores: cuanto más alto, más distinto. El umbral marca a partir de qué ΔE un píxel cuenta como cambio.</p>
+        <p>Sirve para limpiar falsos positivos: al rasterizar, los bordes y las diagonales de un vector pueden salir un pelo distintos en los dos archivos y marcarse como diferencia sin que nadie haya tocado el diseño. Con la compresión de un JPG, o con el remuestreo de la alineación, pasa lo mismo.</p>
+        <p>Empieza en 1 y súbelo poco a poco mientras miras el resultado: lo que desaparece al subir era ruido, lo que aguanta es un cambio real. Con JPG o con alineación aplicada, la herramienta ya te lo sube a 2.</p>
+        <p>No te pases: cuanto más lo subes, más cambios reales se quedan fuera. Se aplica al instante, sin volver a comparar.</p>
       </div>
     </details>
-    <details class="help-item" id="help-uso">
-      <summary>Cómo se usa<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+    <details class="help-item" id="help-alineacion">
+      <summary>Alineación<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
-        <p>Pensada para ordenador: necesitas pantalla grande y ratón o trackpad para marcar alineación y revisar zonas con precisión.</p>
-        <ol>
-          <li>Carga la Imagen A (original) y la Imagen B (modificado).</li>
-          <li>Si hace falta, marca los puntos de alineación antes de comparar.</li>
-          <li>Pulsa «Comparar».</li>
-          <li>Revisa el resultado en la vista «Marcado»: la imagen B aparece en gris claro y cada área con diferencias, a color dentro de su recuadro. Haz clic en un área para ver su ΔE máximo y medio; el umbral ΔE decide qué cuenta como diferencia.</li>
-          <li>Si lo necesitas, pasa al overlay o al mapa ΔE y revisa la lista de zonas diferentes.</li>
-        </ol>
+        <p>Pulsa «Alinear archivos»: la herramienta busca los objetos idénticos en los dos archivos y calcula el desplazamiento. Si no encuentra suficientes, te ofrece marcar dos puntos a mano.</p>
+        <p>Entre dos PDF o .ai la escala queda fija a 1:1, porque entre revisiones el arte no se reescala, solo cambia de sitio en la página. Se compara la zona común de las dos páginas.</p>
+        <p>Con JPG y PNG, expórtalas al mismo tamaño y resolución: si no, los bordes salen como diferencias.</p>
       </div>
     </details>
-    <details class="help-item">
-      <summary>¿Qué es el umbral ΔE y cómo ajustarlo?<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+    <details class="help-item" id="help-formatos">
+      <summary>Formatos<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
-        <p>El ΔE (Delta E) mide la diferencia de color entre dos puntos: cuanto más alto, más distinto es el color. El umbral determina a partir de qué ΔE se considera que un píxel ha cambiado.</p>
-        <p>Al comparar dos archivos digitales, cualquier diferencia es un cambio real: no hay proceso de impresión que introduzca variación. Por eso la recomendación es trabajar con el umbral en <strong>1</strong>, para que no se te escape nada — incluidos los cambios de tinta que a simple vista no se aprecian.</p>
-        <p>El umbral existe para filtrar el ruido que introducen los propios archivos, no para descartar cambios pequeños:</p>
-        <ul>
-          <li><strong>Umbral 1</strong> — Recomendado. PNG y PDF, sin alineación aplicada. Detecta todo.</li>
-          <li><strong>Umbral 2-3</strong> — Con JPG, cuya compresión genera diferencias falsas, o cuando hay transformación de alineación activa y el remuestreo produce ruido en los bordes.</li>
-          <li><strong>Umbral 5 o más</strong> — Solo si quieres localizar únicamente los cambios grandes e ignorar los matices.</li>
-        </ul>
-        <p>El umbral va de 0,5 a 10,0: escríbelo en su campo o muévelo con el deslizador, de <strong>Baja</strong> (más estricto, detecta más) a <strong>Alta</strong> (más tolerante). El cambio se aplica al momento sobre la comparación ya hecha, sin volver a comparar.</p>
-        <p>Subir el umbral <strong>oculta diferencias reales</strong>. Ante la duda, es mejor bajarlo y revisar más zonas.</p>
-        <p>El umbral ΔE filtra por intensidad del cambio de color. El tamaño mínimo filtra por extensión de la zona. Para no perder cambios pequeños, deja el tamaño mínimo bajo y ajusta el umbral si aparece demasiado ruido.</p>
-      </div>
-    </details>
-    <details class="help-item">
-      <summary>Alineación: cuándo usarla<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
-      <div class="help-body">
-        <p>Si las dos versiones tienen distinto tamaño, resolución o están giradas, marca los puntos de referencia antes de comparar — si no, la herramienta marcará la imagen entera como diferente.</p>
-        <p>Marca el mismo punto físico del artwork en A y en B. Conviene poner los dos puntos lo más separados posible entre sí, para que el cálculo de escala y giro sea más preciso.</p>
-        <p>Los archivos vectoriales (PDF, .AI) son los mejores para comparar: la alineación se calcula sobre la geometría real del archivo y el resultado es exacto.</p>
-        <p>Entre dos archivos vectoriales la <strong>escala queda bloqueada a 1:1</strong>: entre revisiones el arte no se reescala, lo que cambia es la página, las marcas o la información técnica alrededor. Solo se calcula el desplazamiento, en puntos PDF, y la Imagen B se renderiza ya desplazada sin remuestrear el bitmap, así que el arte idéntico da ΔE 0. Se compara únicamente la intersección de ambas páginas (se indica en mm), y lo que queda fuera aparece tramado en las miniaturas. Desbloquea la escala solo si sabes que un archivo fue reescalado.</p>
-        <p>Con imágenes ráster (JPG, PNG) la alineación depende de la precisión al marcar los puntos, y si las dos imágenes no tienen el mismo tamaño de página y resolución, el reescalado genera diferencias en los bordes que no corresponden a cambios del diseño.</p>
-        <p>Si puedes elegir, pide las dos versiones en PDF. Si solo tienes imágenes, procura que estén exportadas al mismo tamaño y resolución.</p>
-      </div>
-    </details>
-    <details class="help-item">
-      <summary>Formatos admitidos<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
-      <div class="help-body">
-        <p>PDF, .ai, JPG y PNG. El formato SVG no es compatible.</p>
-        <p>El análisis se realiza siempre a 600 ppp, resolución suficiente para detectar desplazamientos mínimos y cambios en texto pequeño. Antes de comparar, la herramienta estima si tu navegador tiene memoria suficiente y avisa si el archivo es demasiado grande. En archivos PDF, además, detecta si el texto es vivo (editable) o está trazado (convertido a curvas).</p>
+        <p>PDF, .ai, JPG y PNG. SVG no.</p>
+        <p>El análisis se hace siempre a 600 ppp. Antes de comparar, la herramienta comprueba si tu navegador tiene memoria suficiente y avisa si el archivo es demasiado grande.</p>
       </div>
     </details>
     <details class="help-item" id="help-limites">
       <summary>Limitaciones<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
       <div class="help-body">
-        <ul>
-          <li>Compara la apariencia final compuesta, no separaciones ni canales individuales de tinta.</li>
-          <li>No compara tintas planas, sobreimpresión ni barnices por separado.</li>
-          <li>La sobreimpresión solo se simula si activas el botón «Sobreimprimir»: traduce los objetos sobreimpresos al modo Multiplicar, una aproximación válida para tintas planas y negro sobreimpreso, que es la práctica totalidad de los casos en artes finales. No sustituye a la previsualización de un RIP, y dentro de un patrón de mosaico no tiene efecto.</li>
-          <li>No sustituye a una revisión profesional de preimpresión; es una ayuda para localizar cambios rápido.</li>
-        </ul>
-      </div>
-    </details>
-    <details class="help-item">
-      <summary>Privacidad<span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary>
-      <div class="help-body">
-        <p>Todo el procesamiento ocurre en tu navegador. Los archivos no se suben a ningún servidor.</p>
-        <p>Puedes comprobarlo desconectando la conexión a internet: la herramienta sigue funcionando igual.</p>
+        <p>Compara la apariencia final, no las separaciones de tinta una a una.</p>
+        <p>La sobreimpresión solo se simula si activas «Sobreimprimir», y dentro de un patrón de mosaico no tiene efecto.</p>
+        <p>No sustituye a una revisión de preimpresión: sirve para localizar cambios rápido.</p>
       </div>
     </details>
   </div>
@@ -995,25 +1021,25 @@ button.action:focus-visible,.tab:focus-visible,input:focus-visible{outline:2px s
 </div>
 </div>
 
-<script src="./canvas-view.js?v=36"></script>
-<script src="./similarity.js?v=36"></script>
-<script src="./nudge.js?v=36"></script>
-<script src="./physical-align.js?v=36"></script>
-<script src="./viability.js?v=36"></script>
-<script src="./align.js?v=36"></script>
-<script src="./vector-geometry.js?v=36"></script>
-<script src="./vector-picker.js?v=36"></script>
-<script src="./auto-anchor.js?v=36"></script>
+<script src="./canvas-view.js?v=39"></script>
+<script src="./similarity.js?v=39"></script>
+<script src="./nudge.js?v=39"></script>
+<script src="./physical-align.js?v=39"></script>
+<script src="./viability.js?v=39"></script>
+<script src="./align.js?v=39"></script>
+<script src="./vector-geometry.js?v=39"></script>
+<script src="./vector-picker.js?v=39"></script>
+<script src="./auto-anchor.js?v=39"></script>
 <script src="./lib/pdf-lib/pdf-lib.min.js"></script>
-<script src="./overprint.js?v=36"></script>
-<script src="./pdf-facts.js?v=36"></script>
-<script src="./reliability.js?v=36"></script>
-<script src="./pdf-source.js?v=36"></script>
-<script src="./text-analysis.js?v=36"></script>
-<script src="./diff-areas.js?v=36"></script>
-<script src="./threshold-control.js?v=36"></script>
-<script src="./regions-panel.js?v=36"></script>
-<script src="./marked-panel.js?v=36"></script>
-<script src="./app.js?v=36"></script>
+<script src="./overprint.js?v=39"></script>
+<script src="./pdf-facts.js?v=39"></script>
+<script src="./reliability.js?v=39"></script>
+<script src="./pdf-source.js?v=39"></script>
+<script src="./text-analysis.js?v=39"></script>
+<script src="./diff-areas.js?v=39"></script>
+<script src="./threshold-control.js?v=39"></script>
+<script src="./regions-panel.js?v=39"></script>
+<script src="./marked-panel.js?v=39"></script>
+<script src="./app.js?v=39"></script>
 </body>
 </html>

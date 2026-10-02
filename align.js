@@ -3,9 +3,15 @@
 // forma parte del motor de comparación. Soporta hasta 2 puntos por imagen:
 // 0/1 punto mantiene el comportamiento original (solo traslación); con 2
 // puntos por lado se calcula además escala y giro (ver similarity.js). Los
-// puntos los coloca vector-picker.js (setPointsFromVector); este archivo solo
-// los renderiza como marcas arrastrables/ajustables con el teclado (nudge.js)
-// — ya no hay clic manual sobre el canvas para crear un punto nuevo.
+// puntos los coloca la búsqueda automática de anclas (setPointsFromAuto, con
+// las anclas que verifica auto-anchor.js) o, como alternativa manual,
+// vector-picker.js (setPointsFromVector); este archivo solo los renderiza como
+// marcas arrastrables/ajustables con el teclado (nudge.js) — ya no hay clic
+// manual sobre el canvas para crear un punto nuevo.
+//
+// Aquí vive también la cola del botón «Alinear archivos» (runAutoAlign, al
+// final): auto-anchor.js busca y verifica pero declara no tocar ni el estado
+// ni la interfaz, y este archivo es quien ya posee la sección de alineación.
 // ============================================================================
 
 const alignSection=document.getElementById('alignSection');
@@ -55,7 +61,7 @@ let refA=null,refB=null,refA2=null,refB2=null;
 
 // Método de alineación actualmente en uso — puramente informativo (compare()
 // sigue decidiendo su rama solo por refA/refB/refA2/refB2, esto es solo para
-// el indicador de la UI): 'vector'|'pagebox'|'manual'|'none'.
+// el indicador de la UI): 'auto'|'vector'|'pagebox'|'manual'|'none'.
 let activeAlignMethod='none';
 
 const markerEls={A:[null,null],B:[null,null]};
@@ -357,7 +363,7 @@ function syncRefGlobals(){
 
 function updateAlignMethodBadge(){
   if(!alignMethodBadgeEl)return;
-  const labels={vector:'elemento vectorial',manual:'puntos manuales',pagebox:'caja de página',none:'—'};
+  const labels={auto:'coincidencias automáticas',vector:'elemento vectorial',manual:'puntos manuales',pagebox:'caja de página',none:'—'};
   alignMethodBadgeEl.textContent='Método activo: '+(labels[activeAlignMethod]||labels.none);
 }
 
@@ -388,6 +394,25 @@ function setPointsFromVector(pts){
   positionAllMarkers('A');positionAllMarkers('B');
   refreshAfterPointsChange('A');refreshAfterPointsChange('B');
   activeAlignMethod='vector';
+  updateAlignMethodBadge();
+}
+
+// Llamado desde runAutoAlign (más abajo) con el trío que ya ha verificado
+// auto-anchor.js, ordenado: [0] y [1] son el par que consume la
+// transformación (el más separado) y [2] solo sirvió para verificar por
+// consenso — pointsA/pointsB solo tienen dos huecos, y la tercera ancla ya ha
+// hecho su trabajo antes de llegar aquí.
+//
+// Los centros se registran SIN redondear: son floats en píxeles naturales y
+// son exactamente los que pasaron el consenso. Redondearlos a entero metería
+// hasta 0,06 pt de error por eje a 600 ppp, justo lo que esta vía evita.
+function setPointsFromAuto(anchors){
+  const copia=p=>({x:p.x,y:p.y}); // sin alias con los candidatos de auto-anchor.js
+  pointsA[0]=copia(anchors[0].centerA);pointsB[0]=copia(anchors[0].centerB);
+  pointsA[1]=copia(anchors[1].centerA);pointsB[1]=copia(anchors[1].centerB);
+  positionAllMarkers('A');positionAllMarkers('B');
+  refreshAfterPointsChange('A');refreshAfterPointsChange('B');
+  activeAlignMethod='auto';
   updateAlignMethodBadge();
 }
 
@@ -572,5 +597,96 @@ function resetRefPoints(){
   updateAlignMethodBadge();
   if(typeof sourceA!=='undefined'&&sourceA&&typeof sourceB!=='undefined'&&sourceB)drawAlignCoverage();
   if(typeof checkAlignmentSuggestion==='function')checkAlignmentSuggestion(false);
+  clearAutoAlignStatus();
 }
 document.getElementById('btnResetRef').onclick=resetRefPoints;
+
+// ---- alineación automática: botón «Alinear archivos» -----------------------
+// Busca por programa las anclas que antes elegía el usuario a mano en el modal
+// de vector-picker.js. La búsqueda y la verificación son de auto-anchor.js;
+// aquí solo se gestionan el progreso, la cancelación y el mensaje, y se
+// registran las anclas por setPointsFromAuto.
+
+const btnAutoAlignEl=document.getElementById('btnAutoAlign');
+const btnManualPickerEl=document.getElementById('btnManualPicker');
+const autoAlignStatusEl=document.getElementById('autoAlignStatus');
+const AUTO_ALIGN_LABEL=btnAutoAlignEl?btnAutoAlignEl.innerHTML:'';
+let autoAlignAbortCtrl=null;
+
+function setAutoAlignStatus(text,cls){
+  if(!autoAlignStatusEl)return;
+  autoAlignStatusEl.textContent=text;
+  autoAlignStatusEl.className='align-format-notice '+(cls||'');
+  autoAlignStatusEl.style.display='block';
+}
+function clearAutoAlignStatus(){
+  if(autoAlignStatusEl){autoAlignStatusEl.textContent='';autoAlignStatusEl.style.display='none';}
+  if(btnManualPickerEl)btnManualPickerEl.style.display='none';
+}
+
+// El propio botón hace de «Cancelar» mientras corre la búsqueda, para no
+// añadir un control más a la fila (mismo patrón que vpCancelBuild en el modal).
+function setAutoAlignRunning(running){
+  if(!btnAutoAlignEl)return;
+  btnAutoAlignEl.classList.toggle('primary',!running);
+  btnAutoAlignEl.innerHTML=running?'Cancelar búsqueda':AUTO_ALIGN_LABEL;
+}
+
+// Motivo del fallo en lenguaje de usuario. `reason` lo pone
+// selectAndVerifyAnchors; el caso de cero coincidencias llega como
+// 'pocos-candidatos' con found 0, y merece otra explicación: no es que falten
+// anclas, es que los archivos no comparten ningún objeto idéntico.
+function autoAlignFailureText(sel){
+  if(sel.reason==='pocos-candidatos'){
+    return sel.found
+      ?`Solo se han encontrado ${sel.found} coincidencia(s) exacta(s) entre los dos archivos: hacen falta 3 para poder verificar la alineación.`
+      :'No se ha encontrado ningún elemento que sea idéntico y único en ambos archivos. Puede que el arte se haya rehecho, que esté todo trazado como texto o que uno de los archivos venga de otra fuente.';
+  }
+  if(sel.reason==='colineales'){
+    return `Las ${sel.found} coincidencias encontradas están alineadas entre sí o demasiado juntas: así no se puede verificar el giro ni la escala.`;
+  }
+  if(sel.reason==='discrepancia'){
+    const d=sel.bestSpreadPt!=null?` (la mejor combinación discrepa ${formatEs(sel.bestSpreadPt,2)} pt)`:'';
+    return `Se han encontrado ${sel.found} coincidencias, pero ninguna combinación de tres concuerda${d}: los elementos que parecen iguales no están en la misma posición relativa, así que el emparejamiento no es de fiar.`;
+  }
+  return 'No se ha podido verificar la alineación automática.';
+}
+
+async function runAutoAlign(){
+  if(autoAlignAbortCtrl){autoAlignAbortCtrl.abort();autoAlignAbortCtrl=null;return;}
+  if(!sourceA||!sourceB)return;
+  if(btnManualPickerEl)btnManualPickerEl.style.display='none';
+  autoAlignAbortCtrl=new AbortController();
+  setAutoAlignRunning(true);
+  setAutoAlignStatus('Analizando los archivos…','');
+  try{
+    const sel=await findVerifiedAnchors(sourceA,sourceB,{
+      signal:autoAlignAbortCtrl.signal,
+      onProgress:p=>{
+        const pct=p&&p.total?Math.round(p.done/p.total*100):0;
+        setAutoAlignStatus(`Analizando el archivo ${p.which||'A'}… ${pct} %`,'');
+      }
+    });
+    if(sel.ok){
+      setPointsFromAuto(sel.anchors);
+      setAutoAlignStatus(
+        `Alineación verificada: ${sel.found} elementos idénticos encontrados; se han usado 3 repartidos por la página y los tres concuerdan dentro de ${formatEs(sel.spreadPt,2)} pt.`,
+        'positive'
+      );
+    }else{
+      setAutoAlignStatus(autoAlignFailureText(sel),'warn-strong');
+      if(btnManualPickerEl)btnManualPickerEl.style.display='inline-flex';
+    }
+  }catch(err){
+    if(err&&(err.aborted||err.name==='AbortError')){
+      clearAutoAlignStatus();
+    }else{
+      setAutoAlignStatus('No se ha podido analizar la geometría de los archivos: '+err.message,'warn-strong');
+      if(btnManualPickerEl)btnManualPickerEl.style.display='inline-flex';
+    }
+  }finally{
+    autoAlignAbortCtrl=null;
+    setAutoAlignRunning(false);
+  }
+}
+if(btnAutoAlignEl)btnAutoAlignEl.onclick=runAutoAlign;
