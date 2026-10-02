@@ -16,3 +16,20 @@ pruebas/
 # guía de trabajo y skills locales (no se publican)
 CLAUDE.md
 .claude/skills/
+
+# arte de clientes: nunca versionar originales ni renders, estén donde estén.
+# La carpeta pruebas/ ya está ignorada, pero un archivo suelto en la raíz no lo
+# estaría: estos patrones cierran esa vía. Para publicar una captura propia,
+# forzarla con `git add -f`.
+*.pdf
+*.ai
+*.eps
+*.psd
+*.tif
+*.tiff
+*.indd
+*.jpg
+*.jpeg
+*.png
+!Logo_dmondelo.svg
+!lib/**
